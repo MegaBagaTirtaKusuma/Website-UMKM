@@ -1,0 +1,2 @@
+ALTER TABLE "Production"
+ADD COLUMN "productionDate" TIMESTAMPTZ DEFAULT NOW();
