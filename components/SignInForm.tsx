@@ -3,15 +3,18 @@ import React, { useState } from "react";
 import Input from "./ui/input";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 
 const SignInForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setError(null);
 
     try {
       const response = await fetch("/api/auth/sign-in", {
@@ -22,24 +25,26 @@ const SignInForm = () => {
         body: JSON.stringify({ email, password }),
       });
 
-      // Check if the response is successful
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem("authToken", data.token); // Simpan token di localStorage
-        router.push("/"); // Redirect ke home
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to sign in");
       }
 
-      // If sign-in is successful, get the token and user data (including userId)
       const data = await response.json();
-
-      // Store the JWT token in localStorage or sessionStorage (optional)
-      localStorage.setItem("authToken", data.token); // Or use sessionStorage if you want it to expire when the session ends
-
-      // Redirect to the home page after successful sign-in
+      localStorage.setItem("authToken", data.token);
       router.push("/");
     } catch (error) {
-      setError("An error occurred while signing in.");
+      console.error("Sign-in error:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while signing in."
+      );
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -49,13 +54,25 @@ const SignInForm = () => {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        required
       />
-      <Input
-        label="Password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+      <div className="relative">
+        <Input
+          label="Password"
+          type={showPassword ? "text" : "password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <button
+          type="button"
+          onClick={togglePasswordVisibility}
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+          style={{ marginTop: "0.75rem" }} // Menambahkan margin top untuk menyesuaikan posisi
+        >
+          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+        </button>
+      </div>
       {error && <p className="text-red-500 text-sm">{error}</p>}
       <Button type="submit">Sign In</Button>
     </form>

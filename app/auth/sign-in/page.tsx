@@ -8,8 +8,8 @@ const SignInPage = () => {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Masuk</h1>
       <SignInForm />
-      <p className="mt-4">
-        Don&apos;t have an account?{" "}
+      <p className="mt-4 text-center">
+        Belum punya akun?{" "}
         <Link href="/auth/sign-up" className="text-blue-500 underline">
           Daftar
         </Link>

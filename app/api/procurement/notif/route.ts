@@ -1,7 +1,7 @@
 // api/procurement/notif/route.ts
 import { NextResponse } from "next/server";
 import prisma from "../../../../lib/prisma";
-import { jwtVerify } from "jose"; // Menggunakan 'jose' untuk verifikasi token JWT
+import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
 const SECRET = new TextEncoder().encode(
@@ -10,7 +10,6 @@ const SECRET = new TextEncoder().encode(
 
 export async function GET() {
   try {
-    // Mengambil token dari cookie
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
       console.error("Token tidak ditemukan");
@@ -18,9 +17,8 @@ export async function GET() {
     }
 
     const token = tokenCookie.value;
-    console.log("Token diterima:", token); // Debugging token
+    console.log("Token diterima:", token);
 
-    // Verifikasi token JWT
     let decoded;
     try {
       decoded = await jwtVerify(token, SECRET);
@@ -29,7 +27,6 @@ export async function GET() {
       return new NextResponse("Token tidak valid", { status: 401 });
     }
 
-    // Ambil userId dari payload token
     const userId = decoded.payload.id;
     if (!userId) {
       console.error("UserId tidak ditemukan dalam token");
@@ -38,21 +35,21 @@ export async function GET() {
       });
     }
 
-    console.log("UserId ditemukan:", userId); // Debugging userId
+    console.log("UserId ditemukan:", userId);
 
-    // Ambil data stok bahan baku dengan kuantitas rendah dari database
     const lowStockItems = await prisma.procurement.findMany({
       where: {
         currentQuantity: {
-          lte: 10, // Batas minimum stok
+          lte: 10,
         },
-        category: "Bahan Baku Produksi", // Filter hanya untuk kategori "Bahan Baku Produksi"
-        userId, // Pastikan hanya mengambil item untuk pengguna yang terautentikasi
+        category: "Bahan Baku Produksi",
+        userId,
       },
       select: {
         id: true,
         itemName: true,
         currentQuantity: true,
+        unit: true, // Tambahkan ini untuk menyertakan informasi unit
       },
     });
 
@@ -63,5 +60,4 @@ export async function GET() {
   }
 }
 
-// Export this to indicate the route is dynamic
 export const dynamic = "force-dynamic";

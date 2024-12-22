@@ -1,8 +1,7 @@
+// lib/utils.ts
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { jwtVerify, SignJWT, JWTPayload } from "jose";
-
-// lib/utils.ts
 
 // Fungsi untuk menggabungkan kelas dengan Tailwind
 export function cn(...inputs: ClassValue[]) {

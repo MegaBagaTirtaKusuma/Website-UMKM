@@ -1,3 +1,4 @@
+// components/Header.tsx
 "use client";
 
 import { Bell, AlignJustify } from "lucide-react";

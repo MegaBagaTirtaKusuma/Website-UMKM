@@ -1,14 +1,15 @@
+// components/Notification.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { AlertOctagon } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { fetchWithAuth } from "../lib/utils"; // Import fungsi fetchWithAuth seperti di ProcurementTable
+import { fetchWithAuth } from "../lib/utils";
 
-// Tipe untuk data notifikasi
 interface NotificationItem {
   id: number;
   itemName: string;
   currentQuantity: number;
+  unit: string | null; // Tambahkan ini
 }
 
 const Notification = () => {
@@ -81,7 +82,8 @@ const Notification = () => {
             <div>
               <p className="font-medium">Stok Habis</p>
               <p className="text-sm text-gray-500">
-                {item.itemName} tersisa {item.currentQuantity} unit
+                {item.itemName} tersisa {item.currentQuantity}{" "}
+                {item.unit || "unit"}
               </p>
             </div>
           </div>
