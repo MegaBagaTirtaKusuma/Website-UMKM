@@ -1,4 +1,3 @@
-// app/api/procurement/edit/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { jwtVerify } from "jose";
@@ -63,7 +62,6 @@ export async function GET(req: Request) {
     // Pastikan menggunakan initialQuantity
     const result = {
       ...procurementData,
-      quantity: procurementData.initialQuantity, // Menambahkan field quantity dari initialQuantity
       purchaseDate: procurementData.purchaseDate.toISOString().split("T")[0], // Pastikan format tanggal sesuai dengan input date
     };
 
@@ -81,7 +79,8 @@ export async function PUT(req: Request) {
       id: number;
       category?: string;
       itemName?: string;
-      quantity?: string | number;
+      initialQuantity?: string | number;
+      currentQuantity?: string | number;
       unit?: string;
       totalPrice?: string | number;
       supplierName?: string;
@@ -94,7 +93,8 @@ export async function PUT(req: Request) {
       id,
       category,
       itemName,
-      quantity,
+      initialQuantity,
+      currentQuantity,
       unit,
       totalPrice,
       supplierName,
@@ -109,17 +109,28 @@ export async function PUT(req: Request) {
       );
     }
 
-    const parsedQuantity = quantity ? Number(quantity) : null;
+    const parsedInitialQuantity = initialQuantity
+      ? Number(initialQuantity)
+      : null;
+    const parsedCurrentQuantity = currentQuantity
+      ? Number(currentQuantity)
+      : null;
     const parsedTotalPrice = Number(totalPrice);
 
     if (
       isNaN(parsedTotalPrice) ||
-      (parsedQuantity !== null && isNaN(parsedQuantity))
+      (parsedInitialQuantity !== null && isNaN(parsedInitialQuantity)) ||
+      (parsedCurrentQuantity !== null && isNaN(parsedCurrentQuantity))
     ) {
-      console.warn("Invalid quantity or totalPrice format");
-      return new NextResponse("Quantity and totalPrice must be valid numbers", {
-        status: 400,
-      });
+      console.warn(
+        "Invalid initialQuantity, currentQuantity, or totalPrice format"
+      );
+      return new NextResponse(
+        "initialQuantity, currentQuantity, and totalPrice must be valid numbers",
+        {
+          status: 400,
+        }
+      );
     }
 
     const parsedPurchaseDate = new Date(purchaseDate);
@@ -134,8 +145,8 @@ export async function PUT(req: Request) {
       data: {
         category,
         itemName,
-        initialQuantity: parsedQuantity ?? undefined,
-        currentQuantity: parsedQuantity ?? undefined,
+        initialQuantity: parsedInitialQuantity ?? undefined,
+        currentQuantity: parsedCurrentQuantity ?? undefined,
         unit: unit ?? null,
         totalPrice: parsedTotalPrice,
         supplierName: supplierName ?? null,

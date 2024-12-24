@@ -43,7 +43,7 @@ type ProcurementCategory =
 interface FormValues {
   category: ProcurementCategory;
   itemName?: string;
-  quantity?: number;
+  initialQuantity?: number;
   unit?: ProcurementUnit;
   totalPrice: number;
   supplierName?: string;
@@ -104,7 +104,7 @@ export default function ProcurementForm() {
             <div className="flex gap-2">
               <div className="flex-1 min-w-[100px] w-full">
                 <FormField
-                  name="quantity"
+                  name="initialQuantity"
                   label="Kuantitas"
                   type="number"
                   register={register}
@@ -170,7 +170,7 @@ export default function ProcurementForm() {
               required
             />
             <FormField
-              name="quantity"
+              name="initialQuantity"
               label="Kuantitas"
               type="number"
               register={register}

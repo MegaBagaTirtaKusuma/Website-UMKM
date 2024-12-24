@@ -1,4 +1,3 @@
-// app/api/procurement/route.ts
 import { NextResponse } from "next/server";
 import prisma from "../../../lib/prisma";
 import { jwtVerify } from "jose";
@@ -20,7 +19,7 @@ export async function GET() {
 
     const token = tokenCookie.value;
 
-    // Verify token ok
+    // Verify token
     let decoded;
     try {
       decoded = await jwtVerify(token, SECRET);
@@ -52,12 +51,18 @@ export async function POST(req: Request) {
     const data: {
       category?: string;
       itemName?: string;
-      quantity?: string | number;
+      initialQuantity?: string | number;
       unit?: string;
       totalPrice?: string | number;
       supplierName?: string;
       purchaseDate?: string;
     } = await req.json();
+
+    // Parse initialQuantity and totalPrice
+    const parsedInitialQuantity = data.initialQuantity
+      ? parseFloat(data.initialQuantity as string)
+      : null;
+    const parsedTotalPrice = Number(data.totalPrice);
 
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
@@ -81,33 +86,26 @@ export async function POST(req: Request) {
       });
     }
 
-    const {
-      category,
-      itemName,
-      quantity,
-      totalPrice,
-      supplierName,
-      purchaseDate,
-    } = data;
+    const { category, itemName, totalPrice, supplierName, purchaseDate } = data;
 
     if (!category || !purchaseDate || totalPrice == null) {
       return new NextResponse(
-        "Category, purchaseDate, and unitPrice are required",
+        "Category, purchaseDate, and totalPrice are required",
         { status: 400 }
       );
     }
 
-    const parsedQuantity = quantity ? Number(quantity) : null;
-    const parsedUnitPrice = Number(totalPrice);
-
     if (
-      isNaN(parsedUnitPrice) ||
-      (parsedQuantity !== null && isNaN(parsedQuantity))
+      isNaN(parsedTotalPrice) ||
+      (parsedInitialQuantity !== null && isNaN(parsedInitialQuantity))
     ) {
-      console.warn("Invalid quantity or unitPrice format");
-      return new NextResponse("Quantity and unit price must be valid numbers", {
-        status: 400,
-      });
+      console.warn("Invalid initialQuantity or totalPrice format");
+      return new NextResponse(
+        "Initial quantity and total price must be valid numbers",
+        {
+          status: 400,
+        }
+      );
     }
 
     const parsedPurchaseDate = new Date(purchaseDate);
@@ -120,11 +118,10 @@ export async function POST(req: Request) {
       data: {
         category,
         itemName: itemName ?? "",
-        initialQuantity: parsedQuantity ?? undefined,
-        currentQuantity: parsedQuantity ?? undefined,
+        initialQuantity: parsedInitialQuantity ?? undefined,
+        currentQuantity: parsedInitialQuantity ?? undefined,
         unit: data.unit ?? null,
-        unitPrice: 0,
-        totalPrice: parsedUnitPrice,
+        totalPrice: parsedTotalPrice,
         supplierName: supplierName ?? null,
         purchaseDate: parsedPurchaseDate,
         userId,

@@ -1,4 +1,3 @@
-// ProcurementEdit.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -10,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRouter, useSearchParams } from "next/navigation"; // Use useSearchParams for query
+import { useRouter, useSearchParams } from "next/navigation";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const PROCUREMENT_CATEGORIES = {
@@ -36,7 +35,8 @@ type ProcurementCategory =
 interface FormValues {
   category: ProcurementCategory;
   itemName?: string;
-  quantity?: number;
+  initialQuantity?: number;
+  currentQuantity?: number;
   unit?: ProcurementUnit;
   totalPrice: number;
   supplierName?: string;
@@ -46,7 +46,6 @@ interface FormValues {
 export default function ProcurementEdit() {
   const [category, setCategory] = useState<ProcurementCategory | "">("");
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [procurementData, setProcurementData] = useState<FormValues | null>(
     null
   );
@@ -59,15 +58,14 @@ export default function ProcurementEdit() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const procurementId = searchParams.get("id"); // Get procurement ID from query string
+  const procurementId = searchParams.get("id");
 
   useEffect(() => {
     if (!procurementId) {
-      router.push("/procurement"); // Redirect if no ID is found
+      router.push("/procurement");
       return;
     }
 
-    // Fetch procurement data for editing
     const fetchData = async () => {
       try {
         const response = await fetch(
@@ -80,7 +78,8 @@ export default function ProcurementEdit() {
           reset({
             ...data,
             purchaseDate: data.purchaseDate,
-            quantity: data.initialQuantity, // Use `initialQuantity` for quantity
+            initialQuantity: data.initialQuantity,
+            currentQuantity: data.currentQuantity,
           });
         } else {
           alert("Data not found!");
@@ -109,7 +108,7 @@ export default function ProcurementEdit() {
       const result = await response.json();
       if (response.ok) {
         alert("Procurement updated successfully!");
-        router.push("/procurement"); // Redirect to procurement page after successful update
+        router.push("/procurement");
       } else {
         alert(`Error: ${result.error}`);
       }
@@ -123,10 +122,11 @@ export default function ProcurementEdit() {
     name: string;
     label: string;
     type?: string;
+    step?: string;
     register: any;
     errors: any;
     required?: boolean;
-  }> = ({ name, label, type = "text", register, errors, required }) => (
+  }> = ({ name, label, type = "text", step, register, errors, required }) => (
     <div className="flex flex-col">
       <label htmlFor={name} className="mb-2">
         {label}
@@ -134,6 +134,7 @@ export default function ProcurementEdit() {
       <input
         id={name}
         type={type}
+        step={step}
         {...register(name, {
           required: required ? `${label} is required` : false,
         })}
@@ -160,9 +161,19 @@ export default function ProcurementEdit() {
             <div className="flex gap-2">
               <div className="flex-1 min-w-[100px] w-full">
                 <FormField
-                  name="quantity"
-                  label="Kuantitas"
+                  name="initialQuantity"
+                  label="Kuantitas Awal"
                   type="number"
+                  step="0.01"
+                  register={register}
+                  errors={errors}
+                  required
+                />
+                <FormField
+                  name="currentQuantity"
+                  label="Kuantitas Sekarang"
+                  type="number"
+                  step="0.01"
                   register={register}
                   errors={errors}
                   required
@@ -193,6 +204,7 @@ export default function ProcurementEdit() {
               name="totalPrice"
               label="Harga Total"
               type="number"
+              step="0.01"
               register={register}
               errors={errors}
               required
@@ -226,9 +238,19 @@ export default function ProcurementEdit() {
               required
             />
             <FormField
-              name="quantity"
-              label="Kuantitas"
+              name="initialQuantity"
+              label="Kuantitas Awal"
               type="number"
+              step="0.01"
+              register={register}
+              errors={errors}
+              required
+            />
+            <FormField
+              name="currentQuantity"
+              label="Kuantitas Sekarang"
+              type="number"
+              step="0.01"
               register={register}
               errors={errors}
               required
@@ -237,6 +259,7 @@ export default function ProcurementEdit() {
               name="totalPrice"
               label="Harga Total"
               type="number"
+              step="0.01"
               register={register}
               errors={errors}
               required
@@ -273,11 +296,11 @@ export default function ProcurementEdit() {
               name="totalPrice"
               label="Biaya Perbaikan"
               type="number"
+              step="0.01"
               register={register}
               errors={errors}
               required
             />
-
             <FormField
               name="purchaseDate"
               label="Tanggal Perbaikan"
@@ -303,6 +326,7 @@ export default function ProcurementEdit() {
               name="totalPrice"
               label="Biaya Transportasi/Pengiriman"
               type="number"
+              step="0.01"
               register={register}
               errors={errors}
               required
@@ -332,6 +356,7 @@ export default function ProcurementEdit() {
               name="totalPrice"
               label="Biaya Tagihan"
               type="number"
+              step="0.01"
               register={register}
               errors={errors}
               required
@@ -361,6 +386,7 @@ export default function ProcurementEdit() {
               name="totalPrice"
               label="Biaya Promosi"
               type="number"
+              step="0.01"
               register={register}
               errors={errors}
               required

@@ -12,19 +12,17 @@ model Procurement {
   id              Int              @id @default(autoincrement())
   category        String
   itemName        String
-  unitPrice       Float
   totalPrice      Float
   unit            String?
   supplierName    String?
   purchaseDate    DateTime
-  initialQuantity Int              @default(0)
-  currentQuantity Int              @default(0)
+  initialQuantity Float            @default(0) // Ubah dari Int menjadi Float
+  currentQuantity Float            @default(0) // Ubah dari Int menjadi Float
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   userId          Int
   user            User             @relation(fields: [userId], references: [id])
   productionItems ProductionItem[]
-
 }
 
 
