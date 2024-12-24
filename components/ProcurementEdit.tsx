@@ -46,9 +46,6 @@ interface FormValues {
 export default function ProcurementEdit() {
   const [category, setCategory] = useState<ProcurementCategory | "">("");
   const [loading, setLoading] = useState(true);
-  const [procurementData, setProcurementData] = useState<FormValues | null>(
-    null
-  );
   const {
     register,
     handleSubmit,
@@ -73,7 +70,6 @@ export default function ProcurementEdit() {
         );
         const data = await response.json();
         if (response.ok) {
-          setProcurementData(data);
           setCategory(data.category);
           reset({
             ...data,
