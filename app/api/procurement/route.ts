@@ -58,6 +58,23 @@ export async function POST(req: Request) {
       purchaseDate?: string;
     } = await req.json();
 
+    // Validasi panjang string untuk category, itemName, unit, dan supplierName
+    const stringFields = [
+      data.category,
+      data.itemName,
+      data.unit,
+      data.supplierName,
+    ];
+    const maxLength = 255;
+    for (const field of stringFields) {
+      if (field && field.length > maxLength) {
+        return new NextResponse(
+          `Field exceeds maximum length of ${maxLength} characters`,
+          { status: 400 }
+        );
+      }
+    }
+
     // Parse initialQuantity and totalPrice
     const parsedInitialQuantity = data.initialQuantity
       ? parseFloat(data.initialQuantity as string)

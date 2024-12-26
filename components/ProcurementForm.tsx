@@ -100,6 +100,7 @@ export default function ProcurementForm() {
               register={register}
               errors={errors}
               required
+              maxLength={255}
             />
             <div className="flex gap-2">
               <div className="flex-1 min-w-[100px] w-full">
@@ -147,6 +148,7 @@ export default function ProcurementForm() {
               register={register}
               errors={errors}
               required
+              maxLength={255}
             />
             <FormField
               name="purchaseDate"
@@ -168,6 +170,7 @@ export default function ProcurementForm() {
               register={register}
               errors={errors}
               required
+              maxLength={255}
             />
             <FormField
               name="initialQuantity"
@@ -191,6 +194,7 @@ export default function ProcurementForm() {
               register={register}
               errors={errors}
               required
+              maxLength={255}
             />
             <FormField
               name="purchaseDate"
@@ -212,6 +216,7 @@ export default function ProcurementForm() {
               register={register}
               errors={errors}
               required
+              maxLength={255}
             />
             <FormField
               name="totalPrice"
@@ -242,6 +247,7 @@ export default function ProcurementForm() {
               register={register}
               errors={errors}
               required
+              maxLength={255}
             />
             <FormField
               name="totalPrice"
@@ -271,6 +277,7 @@ export default function ProcurementForm() {
               register={register}
               errors={errors}
               required
+              maxLength={255}
             />
             <FormField
               name="totalPrice"
@@ -300,6 +307,7 @@ export default function ProcurementForm() {
               register={register}
               errors={errors}
               required
+              maxLength={255}
             />
             <FormField
               name="totalPrice"
@@ -327,7 +335,11 @@ export default function ProcurementForm() {
 
   return (
     <TooltipProvider>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+        noValidate
+      >
         <Select
           value={category}
           onValueChange={(value: ProcurementCategory) => setCategory(value)}
@@ -363,8 +375,10 @@ interface FormFieldProps {
   register: any;
   errors: any;
   required?: boolean;
+  maxLength?: number; // Tambahkan ini jika belum ada
 }
 
+// Definisi FormField
 const FormField = ({
   name,
   label,
@@ -372,21 +386,58 @@ const FormField = ({
   register,
   errors,
   required,
-}: FormFieldProps) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Input
-        label={label}
-        id={name}
-        type={type}
-        step={type === "number" ? "0.01" : undefined}
-        placeholder={label}
-        {...register(name, {
-          required: required ? `${label} diperlukan` : false,
-        })}
-        error={errors[name] ? { message: errors[name].message } : undefined}
-      />
-    </TooltipTrigger>
-    <TooltipContent>Masukkan {label.toLowerCase()}</TooltipContent>
-  </Tooltip>
-);
+  maxLength,
+}: FormFieldProps) => {
+  const [maxDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0]; // Format YYYY-MM-DD
+  });
+
+  const registerOptions: any = {
+    required: required ? `Kolom ${label} diperlukan.` : false,
+    maxLength: maxLength
+      ? {
+          value: maxLength,
+          message: `${label} tidak boleh lebih dari ${maxLength} karakter.`,
+        }
+      : undefined,
+  };
+
+  if (type === "date") {
+    registerOptions.max = {
+      value: maxDate,
+      message: `${label} tidak boleh lebih dari hari ini.`,
+    };
+  }
+
+  if (type === "number") {
+    registerOptions.min = {
+      value: 0,
+      message: `${label} harus lebih besar atau sama dengan 0.`,
+    };
+    registerOptions.validate = (value: number) =>
+      value >= 0 || `${label} harus lebih besar atau sama dengan 0.`;
+  }
+
+  return (
+    <div className="flex flex-col">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Input
+            label={label}
+            id={name}
+            type={type}
+            step={type === "number" ? "0.01" : undefined}
+            placeholder={label}
+            {...register(name, registerOptions)}
+            max={type === "date" ? maxDate : undefined}
+          />
+        </TooltipTrigger>
+        <TooltipContent>Masukkan {label.toLowerCase()}</TooltipContent>
+      </Tooltip>
+      {errors[name] && (
+        <p className="text-red-500 text-sm mt-1">{errors[name].message}</p>
+      )}
+    </div>
+  );
+};

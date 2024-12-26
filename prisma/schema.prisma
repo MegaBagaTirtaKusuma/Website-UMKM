@@ -16,8 +16,8 @@ model Procurement {
   unit            String?
   supplierName    String?
   purchaseDate    DateTime
-  initialQuantity Float            @default(0) // Ubah dari Int menjadi Float
-  currentQuantity Float            @default(0) // Ubah dari Int menjadi Float
+  initialQuantity Float            @default(0)
+  currentQuantity Float            @default(0)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   userId          Int

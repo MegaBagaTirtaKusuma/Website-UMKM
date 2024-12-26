@@ -14,6 +14,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { message: "Email already in use" },
+        { status: 409 }
+      );
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
