@@ -28,15 +28,17 @@ model Procurement {
 
 // Model pengguna
 model User {
-  id        Int          @id @default(autoincrement())
-  username  String       @unique
-  email     String       @unique
-  password  String
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  procurements Procurement[]
-  productions Production[]
-  }
+  id                    Int          @id @default(autoincrement())
+  username              String       @unique
+  email                 String       @unique
+  password              String
+  resetPasswordToken    String?      @unique
+  resetPasswordExpires  DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  procurements          Procurement[]
+  productions           Production[]
+}
 
 model Production {
   id                 Int              @id @default(autoincrement())

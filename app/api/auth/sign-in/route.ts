@@ -41,6 +41,14 @@ export async function POST(req: Request) {
       );
     }
 
+    // Cek apakah password baru saja direset
+    if (user.resetPasswordToken) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { resetPasswordToken: null, resetPasswordExpires: null },
+      });
+    }
+
     // Membuat token JWT dengan ID pengguna dan email sebagai payload
     const token = await new SignJWT({ id: user.id, email: user.email })
       .setProtectedHeader({ alg: "HS256" }) // Menentukan algoritma yang digunakan untuk menandatangani

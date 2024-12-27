@@ -1,9 +1,7 @@
 "use client";
+
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import {
@@ -15,13 +13,12 @@ import {
 
 interface FormValues {
   email: string;
-  password: string;
 }
 
-const SignInForm = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+const ForgotPasswordForm = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
   const {
     register,
     handleSubmit,
@@ -29,37 +26,26 @@ const SignInForm = () => {
   } = useForm<FormValues>();
 
   const onSubmit = async (data: FormValues) => {
-    setError(null);
+    setIsSubmitting(true);
+    setMessage("");
 
     try {
-      const response = await fetch("/api/auth/sign-in", {
+      const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to sign in");
-      }
-
-      const responseData = await response.json();
-      localStorage.setItem("authToken", responseData.token);
-      router.push("/");
+      const result = await response.json();
+      setMessage(result.message);
+      setIsSuccess(response.ok);
     } catch (error) {
-      console.error("Sign-in error:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "An error occurred while signing in."
-      );
+      console.error("Forgot password error:", error);
+      setMessage("An error occurred. Please try again.");
+      setIsSuccess(false);
     }
-  };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
+    setIsSubmitting(false);
   };
 
   return (
@@ -78,33 +64,18 @@ const SignInForm = () => {
           required
           maxLength={255}
         />
-        <div className="relative">
-          <FormField
-            name="password"
-            label="Password"
-            type={showPassword ? "text" : "password"}
-            register={register}
-            errors={errors}
-            required
-            minLength={8}
-          />
-          <button
-            type="button"
-            onClick={togglePasswordVisibility}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-            style={{ marginTop: "0.75rem" }}
+        {message && (
+          <p
+            className={`text-sm ${
+              isSuccess ? "text-green-500" : "text-red-500"
+            }`}
           >
-            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-          </button>
-        </div>
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        <Button type="submit">Sign In</Button>
-        <Link
-          href="/auth/forgot-password"
-          className="text-sm text-blue-500 hover:underline"
-        >
-          Lupa Password?
-        </Link>
+            {message}
+          </p>
+        )}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Submitting..." : "Reset Password"}
+        </Button>
       </form>
     </TooltipProvider>
   );
@@ -175,4 +146,4 @@ const FormField = ({
   );
 };
 
-export default SignInForm;
+export default ForgotPasswordForm;

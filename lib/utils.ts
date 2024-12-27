@@ -2,6 +2,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { jwtVerify, SignJWT, JWTPayload } from "jose";
+import crypto from "crypto";
 
 // Fungsi untuk menggabungkan kelas dengan Tailwind
 export function cn(...inputs: ClassValue[]) {
@@ -12,6 +13,10 @@ export function cn(...inputs: ClassValue[]) {
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "defaultsecret"
 );
+
+export function generateResetToken(): string {
+  return crypto.randomBytes(20).toString("hex");
+}
 
 /**
  * Fungsi untuk membuat token JWT
