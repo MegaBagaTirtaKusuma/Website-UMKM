@@ -10,6 +10,8 @@ import ProcurementRecent from "@/components/ProcurementRecent";
 
 import { SalesProps } from "@/components/SalesCard";
 
+import SalesChart from "@/components/SalesChart";
+
 const cardData: CardProps[] = [
   {
     id: "1",
@@ -127,11 +129,8 @@ export default function Home() {
         </CardContent>
 
         {/* Data penjualan pengguna */}
-        <CardContent className="flex justify-between gap-4">
-          <section>
-            <p>Penjualan</p>
-            <p className="text-sm text-gray-400">Penjualan terkini bulan ini</p>
-          </section>
+        <CardContent>
+          <SalesChart />
         </CardContent>
 
         {/* Data pengadaan terkini */}

@@ -22,23 +22,27 @@ model Procurement {
   updatedAt       DateTime         @updatedAt
   userId          Int
   user            User             @relation(fields: [userId], references: [id])
-  productionItems ProductionItem[]
+  productionItems ProductionItem[] // Relasi ke ProductionItem
+}
+
+model Sales {
+  id            Int         @id @default(autoincrement())
+  saleQuantity  Float
+  salePrice     Int
+  saleDate      DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id])
+  productionId  Int
+  production    Production  @relation(fields: [productionId], references: [id])
+  totalRevenue  Float
+
+  @@index([userId])
+  @@index([productionId])
 }
 
 
-// Model pengguna
-model User {
-  id                    Int          @id @default(autoincrement())
-  username              String       @unique
-  email                 String       @unique
-  password              String
-  resetPasswordToken    String?      @unique
-  resetPasswordExpires  DateTime?
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-  procurements          Procurement[]
-  productions           Production[]
-}
 
 model Production {
   id                 Int              @id @default(autoincrement())
@@ -49,16 +53,29 @@ model Production {
   updatedAt          DateTime         @updatedAt
   userId             Int
   user               User             @relation(fields: [userId], references: [id])
-
-  // Relasi ke ProductionItem
-  items              ProductionItem[]
-  }
+  items              ProductionItem[] // Relasi ke ProductionItem
+  sales              Sales[]          // Relasi ke Sales
+}
 
 model ProductionItem {
   id            Int         @id @default(autoincrement())
-  quantity      Int
+  quantity      Float
   production    Production  @relation(fields: [productionId], references: [id])
   productionId  Int
   procurement   Procurement @relation(fields: [procurementId], references: [id])
   procurementId Int
+}
+
+model User {
+  id                    Int          @id @default(autoincrement())
+  username              String       @unique
+  email                 String       @unique
+  password              String
+  resetPasswordToken    String?      @unique
+  resetPasswordExpires  DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  procurements          Procurement[] // Relasi ke Procurement
+  productions           Production[]  // Relasi ke Production
+  sales                 Sales[]       // Relasi ke Sales
 }
