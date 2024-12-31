@@ -23,10 +23,7 @@ interface FormValues {
   productName: string;
   productionDate: string;
   productionQuantity: number;
-  items: {
-    id: number;
-    quantity: number;
-  }[];
+  items: { id: number; item_name: string; quantity: number }[]; // The fields used in the form
 }
 
 export default function ProductionForm() {
