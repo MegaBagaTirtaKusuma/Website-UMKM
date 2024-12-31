@@ -79,11 +79,9 @@ export async function POST(req: Request) {
       return new NextResponse("Token tidak valid", { status: 401 });
     }
 
-    const userId = decoded.payload.id;
-    if (!userId) {
-      return new NextResponse("User ID tidak ditemukan dalam token", {
-        status: 401,
-      });
+    const userId = Number(decoded.payload.id);
+    if (isNaN(userId)) {
+      return new NextResponse("User ID tidak valid", { status: 401 });
     }
 
     // Use provided saleDate or current date if not provided
@@ -139,17 +137,26 @@ export async function POST(req: Request) {
 
     console.log("Data penjualan berhasil disimpan:", transaction);
     return NextResponse.json(transaction, { status: 201 });
-  } catch (error) {
-    console.error(
-      "Error saat menyimpan data penjualan:",
-      error.message || error
-    );
-    return new NextResponse(
-      error.message || "Terjadi kesalahan saat menyimpan data penjualan",
-      {
-        status:
-          error.message === "Jumlah stok produksi tidak mencukupi" ? 400 : 500,
-      }
-    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(
+        "Error saat menyimpan data penjualan:",
+        error.message || error
+      );
+      return new NextResponse(
+        error.message || "Terjadi kesalahan saat menyimpan data penjualan",
+        {
+          status:
+            error.message === "Jumlah stok produksi tidak mencukupi"
+              ? 400
+              : 500,
+        }
+      );
+    } else {
+      console.error("Unknown error:", error);
+      return new NextResponse("Terjadi kesalahan yang tidak terduga", {
+        status: 500,
+      });
+    }
   }
 }
