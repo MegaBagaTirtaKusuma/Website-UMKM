@@ -82,7 +82,7 @@ const SalesChart = () => {
         const response = await fetch("/api/sales");
         if (response.ok) {
           const result: SalesData[] = await response.json();
-          updateMonthlyChart(result);
+          updateMonthlyChart(result); // Menjalankan fungsi update setelah data diperoleh
         } else {
           console.error("Failed to fetch sales data.");
         }
@@ -92,7 +92,7 @@ const SalesChart = () => {
     };
 
     fetchSalesData();
-  }, [selectedYear, selectedMonth, updateMonthlyChart]);
+  }, [selectedYear, selectedMonth, updateMonthlyChart]); // Menambahkan updateMonthlyChart sebagai dependency
 
   const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) =>
     setSelectedYear(parseInt(e.target.value, 10));
