@@ -48,7 +48,7 @@ const SalesChart = () => {
       });
 
       const dailyGroupedData = filteredData.reduce(
-        (acc: Record<string, number>, item: SalesData) => {
+        (acc: Record<string, number>, item) => {
           const date = new Date(item.saleDate);
           const day = date.getDate();
           acc[day] = (acc[day] || 0) + item.saleQuantity;
@@ -84,7 +84,7 @@ const SalesChart = () => {
           const result: SalesData[] = await response.json();
           updateMonthlyChart(result);
         } else {
-          console.error("Failed to fetch sales data. Status:", response.status);
+          console.error("Failed to fetch sales data.");
         }
       } catch (error) {
         console.error("Error fetching sales data:", error);
@@ -94,13 +94,11 @@ const SalesChart = () => {
     fetchSalesData();
   }, [selectedYear, selectedMonth, updateMonthlyChart]);
 
-  const handleYearChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedYear(parseInt(event.target.value, 10));
-  };
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) =>
+    setSelectedYear(parseInt(e.target.value, 10));
 
-  const handleMonthChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedMonth(parseInt(event.target.value, 10));
-  };
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) =>
+    setSelectedMonth(parseInt(e.target.value, 10));
 
   if (!chartData) return <p>Loading chart...</p>;
 
@@ -111,7 +109,7 @@ const SalesChart = () => {
       </h2>
       <div className="mb-4 flex gap-4">
         <div>
-          <label className="block text-sm font-medium mb-2" htmlFor="year">
+          <label htmlFor="year" className="block text-sm font-medium mb-2">
             Pilih Tahun
           </label>
           <select
@@ -128,7 +126,7 @@ const SalesChart = () => {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-2" htmlFor="month">
+          <label htmlFor="month" className="block text-sm font-medium mb-2">
             Pilih Bulan
           </label>
           <select
@@ -157,18 +155,8 @@ const SalesChart = () => {
             },
           },
           scales: {
-            x: {
-              title: {
-                display: true,
-                text: "Tanggal",
-              },
-            },
-            y: {
-              title: {
-                display: true,
-                text: "Jumlah Penjualan",
-              },
-            },
+            x: { title: { display: true, text: "Tanggal" } },
+            y: { title: { display: true, text: "Jumlah Penjualan" } },
           },
         }}
       />

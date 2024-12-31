@@ -18,7 +18,11 @@ interface FormValues {
   saleDate: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch");
+  return res.json();
+};
 
 export default function SalesForm() {
   const {
@@ -55,9 +59,9 @@ export default function SalesForm() {
         const result = await response.json();
         alert(`Error: ${result.error || "Unknown error"}`);
       }
-    } catch (error) {
-      console.error("Error saat menyimpan penjualan:", error);
-      alert("Error saat menyimpan penjualan.");
+    } catch (err) {
+      console.error("Error saat menyimpan penjualan:", err);
+      alert("Terjadi kesalahan saat menyimpan data penjualan.");
     }
   };
 
@@ -72,13 +76,11 @@ export default function SalesForm() {
           className="border border-gray-300 p-2 rounded-md"
         >
           <option value="">Pilih produk</option>
-          {productions ? (
-            productions.map((production) => (
-              <option key={production.id} value={production.id}>
-                {production.productName} (Stok: {production.productionQuantity})
-              </option>
-            ))
-          ) : (
+          {productions?.map((production) => (
+            <option key={production.id} value={production.id}>
+              {production.productName} (Stok: {production.productionQuantity})
+            </option>
+          )) || (
             <option value="" disabled>
               Loading produk...
             </option>
