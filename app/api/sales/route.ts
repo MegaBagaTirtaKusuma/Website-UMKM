@@ -126,7 +126,7 @@ export async function POST(req: Request) {
           saleQuantity: parsedSaleQuantity,
           salePrice: parsedSalePrice,
           saleDate: parsedSaleDate,
-          userId: userId,
+          userId: parsedProductionId,
           totalRevenue: totalRevenue,
         },
       });
