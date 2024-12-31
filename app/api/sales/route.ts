@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     console.log("Data diterima di backend:", data);
 
     // Destructure and parse the incoming data
-    const { productionId, saleQuantity, salePrice, saleDate } = data;
+    const { productionId, saleQuantity, salePrice, saleDate, userId } = data;
 
     // Validate required fields
     if (!productionId || !saleQuantity || !salePrice) {
@@ -79,10 +79,10 @@ export async function POST(req: Request) {
       return new NextResponse("Token tidak valid", { status: 401 });
     }
 
-    const userId = Number(decoded.payload.id);
-    if (isNaN(userId)) {
-      return new NextResponse("User ID tidak valid", { status: 401 });
-    }
+    // const userId = Number(decoded.payload.id);
+    // if (isNaN(userId)) {
+    //   return new NextResponse("User ID tidak valid", { status: 401 });
+    // }
 
     // Use provided saleDate or current date if not provided
     const parsedSaleDate = saleDate ? new Date(saleDate) : new Date();
