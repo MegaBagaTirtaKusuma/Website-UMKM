@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -29,7 +29,6 @@ interface SalesData {
 }
 
 const SalesChart = () => {
-  const [salesData, setSalesData] = useState<SalesData[]>([]);
   const [chartData, setChartData] = useState<any>(null);
   const [selectedYear, setSelectedYear] = useState<number>(
     new Date().getFullYear()
@@ -38,13 +37,51 @@ const SalesChart = () => {
     new Date().getMonth() + 1
   );
 
+  const updateMonthlyChart = useCallback(
+    (data: SalesData[]) => {
+      const filteredData = data.filter((item) => {
+        const date = new Date(item.saleDate);
+        return (
+          date.getFullYear() === selectedYear &&
+          date.getMonth() + 1 === selectedMonth
+        );
+      });
+
+      const dailyGroupedData = filteredData.reduce(
+        (acc: Record<string, number>, item: SalesData) => {
+          const date = new Date(item.saleDate);
+          const day = date.getDate();
+          acc[day] = (acc[day] || 0) + item.saleQuantity;
+          return acc;
+        },
+        {}
+      );
+
+      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      const dailyLabels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+      const dailyData = dailyLabels.map((day) => dailyGroupedData[day] || 0);
+
+      setChartData({
+        labels: dailyLabels,
+        datasets: [
+          {
+            label: `Jumlah Penjualan pada ${selectedMonth}/${selectedYear}`,
+            data: dailyData,
+            borderColor: "rgb(75, 192, 192)",
+            backgroundColor: "rgba(75, 192, 192, 0.2)",
+          },
+        ],
+      });
+    },
+    [selectedYear, selectedMonth]
+  );
+
   useEffect(() => {
     const fetchSalesData = async () => {
       try {
         const response = await fetch("/api/sales");
         if (response.ok) {
           const result: SalesData[] = await response.json();
-          setSalesData(result);
           updateMonthlyChart(result);
         } else {
           console.error("Failed to fetch sales data. Status:", response.status);
@@ -55,43 +92,7 @@ const SalesChart = () => {
     };
 
     fetchSalesData();
-  }, [selectedYear, selectedMonth]);
-
-  const updateMonthlyChart = (data: SalesData[]) => {
-    const filteredData = data.filter((item) => {
-      const date = new Date(item.saleDate);
-      return (
-        date.getFullYear() === selectedYear &&
-        date.getMonth() + 1 === selectedMonth
-      );
-    });
-
-    const dailyGroupedData = filteredData.reduce(
-      (acc: Record<string, number>, item: SalesData) => {
-        const date = new Date(item.saleDate);
-        const day = date.getDate();
-        acc[day] = (acc[day] || 0) + item.saleQuantity;
-        return acc;
-      },
-      {}
-    );
-
-    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-    const dailyLabels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-    const dailyData = dailyLabels.map((day) => dailyGroupedData[day] || 0);
-
-    setChartData({
-      labels: dailyLabels,
-      datasets: [
-        {
-          label: `Jumlah Penjualan pada ${selectedMonth}/${selectedYear}`,
-          data: dailyData,
-          borderColor: "rgb(75, 192, 192)",
-          backgroundColor: "rgba(75, 192, 192, 0.2)",
-        },
-      ],
-    });
-  };
+  }, [selectedYear, selectedMonth, updateMonthlyChart]);
 
   const handleYearChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedYear(parseInt(event.target.value, 10));
