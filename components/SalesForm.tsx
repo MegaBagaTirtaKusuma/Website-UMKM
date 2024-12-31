@@ -5,14 +5,12 @@ import { Button } from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import useSWR from "swr";
 
-// Define the data structure for ProductionItem
 interface ProductionItem {
   id: number;
   productName: string;
   productionQuantity: number;
 }
 
-// Define the structure for the form values
 interface FormValues {
   productionId: number;
   saleQuantity: number;
@@ -30,13 +28,11 @@ export default function SalesForm() {
     formState: { errors },
   } = useForm<FormValues>();
 
-  // Use SWR to fetch production data
   const { data: productions, error } = useSWR<ProductionItem[]>(
     "/api/production",
     fetcher
   );
 
-  // Handle error in data fetching
   if (error) {
     console.error("Failed to fetch production data:", error);
     return <div>Error fetching production data.</div>;
@@ -54,7 +50,7 @@ export default function SalesForm() {
 
       if (response.ok) {
         alert("Penjualan berhasil disimpan!");
-        reset(); // Reset the form after successful submission
+        reset();
       } else {
         const result = await response.json();
         alert(`Error: ${result.error || "Unknown error"}`);
