@@ -19,7 +19,11 @@
     ],
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "typeRoots": [
+      "node_modules/@types", // Menjaga type roots default
+      "types" // Menambahkan folder types ke dalam typeRoots
+    ]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

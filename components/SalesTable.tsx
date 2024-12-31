@@ -11,6 +11,7 @@ import {
 import Pagination from "./Pagination";
 import Input from "./ui/input";
 import { jsPDF } from "jspdf";
+import "jspdf-autotable";
 import { Button } from "./ui/button"; // Import komponen Button
 
 interface SalesItem {
@@ -90,6 +91,7 @@ const SalesTable = () => {
       item.saleQuantity,
       item.salePrice,
     ]);
+
     doc.autoTable({
       head: [
         ["Nama Produk", "Tanggal Penjualan", "Jumlah Penjualan", "Harga Jual"],
