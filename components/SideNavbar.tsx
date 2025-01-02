@@ -30,7 +30,7 @@ const SideNavbar: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
 
   const procurementSubMenus = [
     {
-      title: "Bahan",
+      title: "Manajemen Bahan",
       href: "/item",
       icon: ChevronRight,
       variant: "ghost" as const,
