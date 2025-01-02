@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+/*import { NextResponse } from "next/server";
 import prisma from "../../../../lib/prisma"; // Import koneksi ke database (Prisma)
 import { jwtVerify } from "jose"; // Import untuk verifikasi JWT
 import { cookies } from "next/headers"; // Mengambil cookies dari request
@@ -90,4 +90,4 @@ export async function GET() {
 }
 
 // Export this to indicate the route is dynamic
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";//*/
