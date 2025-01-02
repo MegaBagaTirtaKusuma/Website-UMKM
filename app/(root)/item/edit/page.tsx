@@ -1,8 +1,16 @@
-// app/(root)/procurement/page.tsx
 "use client";
 
+import { Suspense } from "react";
 import ItemEdit from "@/components/ItemEdit";
 import { CardContent } from "@/components/RootCard";
+
+function ItemEditWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ItemEdit />
+    </Suspense>
+  );
+}
 
 export default function ProcurementPage() {
   return (
@@ -12,7 +20,7 @@ export default function ProcurementPage() {
           <section className="flex-grow flex justify-center">
             <p className="text-center">Edit Bahan/Barang</p>
           </section>
-          <ItemEdit />
+          <ItemEditWrapper />
         </CardContent>
       </section>
     </div>
