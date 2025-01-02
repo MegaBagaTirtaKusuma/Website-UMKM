@@ -1,0 +1,1 @@
+ALTER TABLE "Production" ADD COLUMN "quantity" INTEGER NOT NULL DEFAULT 0;

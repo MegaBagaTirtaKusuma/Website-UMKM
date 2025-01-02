@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Item {
+  id           Int           @id @default(autoincrement())
+  itemName     String
+  category     String
+  unit         String?
+  procurements Procurement[]
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Procurement {
+  id              Int              @id @default(autoincrement())
+  itemId          Int
+  item            Item             @relation(fields: [itemId], references: [id])
+  totalPrice      Float
+  supplierName    String?
+  purchaseDate    DateTime
+  initialQuantity Float            @default(0)
+  currentQuantity Float            @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  userId          Int
+  user            User             @relation(fields: [userId], references: [id])
+  productionItems ProductionItem[]
+
+  @@index([itemId])
+  @@index([userId])
+}
+
+model Sales {
+  id            Int         @id @default(autoincrement())
+  saleQuantity  Float
+  salePrice     Int
+  saleDate      DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id])
+  productionId  Int
+  production    Production  @relation(fields: [productionId], references: [id])
+  totalRevenue  Float
+
+  @@index([userId])
+  @@index([productionId])
+}
+
+model Production {
+  id                 Int              @id @default(autoincrement())
+  productName        String
+  productionDate     DateTime
+  productionQuantity Int
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  userId             Int
+  user               User             @relation(fields: [userId], references: [id])
+  items              ProductionItem[]
+  sales              Sales[]
+
+  @@index([userId])
+}
+
+model ProductionItem {
+  id            Int         @id @default(autoincrement())
+  quantity      Float
+  production    Production  @relation(fields: [productionId], references: [id])
+  productionId  Int
+  procurement   Procurement @relation(fields: [procurementId], references: [id])
+  procurementId Int
+
+  @@index([productionId])
+  @@index([procurementId])
+}
+
+model User {
+  id                    Int           @id @default(autoincrement())
+  username              String        @unique
+  email                 String        @unique
+  password              String
+  resetPasswordToken    String?       @unique
+  resetPasswordExpires  DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  procurements          Procurement[]
+  productions           Production[]
+  sales                 Sales[]
+  items                 Item[]
+}
