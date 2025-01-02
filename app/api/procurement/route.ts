@@ -203,6 +203,7 @@ export async function DELETE(req: Request) {
     });
 
     // Delete procurement record
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const deletedProcurement = await prisma.procurement.delete({
       where: {
         id: Number(id),

@@ -67,9 +67,11 @@ export default function ItemEdit() {
         if (response.ok) {
           // Convert the category and unit back to their keys
           const category = Object.entries(ITEM_CATEGORIES).find(
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             ([_, value]) => value === data.category
           )?.[0] as ItemCategory;
           const unit = Object.entries(ITEM_UNITS).find(
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             ([_, value]) => value === data.unit
           )?.[0] as ItemUnit;
           reset({ ...data, category, unit });
