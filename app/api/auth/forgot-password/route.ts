@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     const resetToken = generateResetToken();
-    const resetTokenExpiry = new Date(Date.now() + 20000); // 1 hour from now(ubah jd 20detik dlu)
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now(ubah jd 20detik dlu)
 
     await prisma.user.update({
       where: { id: user.id },
