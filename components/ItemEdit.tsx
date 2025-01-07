@@ -65,13 +65,13 @@ export default function ItemEdit() {
         const response = await fetch(`/api/procurement/item/edit?id=${itemId}`);
         const data = await response.json();
         if (response.ok) {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const category = Object.entries(ITEM_CATEGORIES).find(
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             ([key, value]) => value === data.category
           )?.[0] as ItemCategory;
 
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const unit = Object.entries(ITEM_UNITS).find(
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             ([key, value]) => value === data.unit
           )?.[0] as ItemUnit;
           reset({ ...data, category, unit });
