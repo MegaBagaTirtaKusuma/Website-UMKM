@@ -3,7 +3,6 @@
 import { Suspense, ReactNode } from "react";
 import ItemForm from "@/components/ItemForm";
 import ItemTable from "@/components/ItemTable";
-import ItemEdit from "@/components/ItemEdit";
 import { CardContent } from "@/components/RootCard";
 
 function SuspenseWrapper({ children }: { children: ReactNode }) {

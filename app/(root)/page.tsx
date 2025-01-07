@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DollarSign, Users, CreditCard, Activity } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import Card, { CardProps, CardContent } from "@/components/Card";
 import BarChart from "@/components/ProcurementBarChart";
 import ProcurementRecent from "@/components/ProcurementRecent";

@@ -66,10 +66,11 @@ export default function ItemEdit() {
         const data = await response.json();
         if (response.ok) {
           const category = Object.entries(ITEM_CATEGORIES).find(
-            ([_, value]) => value === data.category
+            ([key, value]) => value === data.category
           )?.[0] as ItemCategory;
+
           const unit = Object.entries(ITEM_UNITS).find(
-            ([_, value]) => value === data.unit
+            ([key, value]) => value === data.unit
           )?.[0] as ItemUnit;
           reset({ ...data, category, unit });
         } else {
