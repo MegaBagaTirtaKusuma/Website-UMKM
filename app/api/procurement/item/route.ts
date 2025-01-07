@@ -1,6 +1,7 @@
 // api/procurement/item/route.ts
 import { NextResponse } from "next/server";
 import prisma from "../../../../lib/prisma";
+import { Prisma } from "@prisma/client";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
@@ -38,8 +39,8 @@ export async function GET() {
     });
     return NextResponse.json(items, { status: 200 });
   } catch (error) {
-    console.error("Error saat mengambil item:", error);
-    return new NextResponse("Error saat mengambil item", { status: 500 });
+    console.error("Error saat mengambil bahan:", error);
+    return new NextResponse("Error saat mengambil bahan", { status: 500 });
   }
 }
 
@@ -70,25 +71,69 @@ export async function POST(req: Request) {
     const { itemName, category, unit } = data;
 
     if (!itemName || !category) {
-      return new NextResponse("Nama item dan kategori wajib diisi", {
+      return new NextResponse("Nama bahan dan kategori wajib diisi", {
         status: 400,
       });
     }
 
+    // Cek apakah item dengan nama yang sama sudah ada
+    const existingItem = await prisma.item.findFirst({
+      where: {
+        itemName: {
+          equals: itemName,
+          mode: "insensitive", // Case insensitive search
+        },
+        userId: userIdNumber,
+      },
+    });
+
+    if (existingItem) {
+      return NextResponse.json(
+        {
+          error:
+            "Nama bahan sudah ada untuk user ini. Silakan gunakan nama lain.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Buat item baru
     const item = await prisma.item.create({
       data: {
-        itemName,
+        itemName: itemName.trim(), // Hapus spasi di awal dan akhir
         category,
         unit: unit || null,
         userId: userIdNumber,
       },
     });
 
-    console.log("Item berhasil dibuat:", item);
-    return NextResponse.json(item, { status: 201 });
+    return NextResponse.json(
+      {
+        message: "Bahan berhasil ditambahkan",
+        data: item,
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error("Error saat membuat item:", error);
-    return new NextResponse("Error saat membuat item", { status: 500 });
+    console.error("Error detail:", error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          {
+            error: "Nama bahan sudah ada. Silakan gunakan nama lain.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    return NextResponse.json(
+      {
+        error: "Terjadi kesalahan saat menyimpan bahan",
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -115,7 +160,7 @@ export async function PUT(req: Request) {
     const { id, itemName, category, unit } = data;
 
     if (!id) {
-      return new NextResponse("ID item wajib diisi", { status: 400 });
+      return new NextResponse("ID bahan wajib diisi", { status: 400 });
     }
 
     // Periksa apakah item milik user yang sedang login
@@ -125,7 +170,7 @@ export async function PUT(req: Request) {
 
     if (!existingItem || existingItem.userId !== Number(userId)) {
       return new NextResponse(
-        "Item tidak ditemukan atau Anda tidak memiliki izin untuk mengedit",
+        "Bahan tidak ditemukan atau Anda tidak memiliki izin untuk mengedit",
         { status: 403 }
       );
     }
@@ -139,11 +184,11 @@ export async function PUT(req: Request) {
       },
     });
 
-    console.log("Item berhasil diperbarui:", updatedItem);
+    console.log("Bahan berhasil diperbarui:", updatedItem);
     return NextResponse.json(updatedItem, { status: 200 });
   } catch (error) {
-    console.error("Error saat memperbarui item:", error);
-    return new NextResponse("Error saat memperbarui item", { status: 500 });
+    console.error("Error saat memperbarui bahan:", error);
+    return new NextResponse("Error saat memperbarui bahan", { status: 500 });
   }
 }
 
@@ -174,7 +219,7 @@ export async function DELETE(req: Request) {
 
     if (!existingItem || existingItem.userId !== Number(userId)) {
       return new NextResponse(
-        "Item tidak ditemukan atau Anda tidak memiliki izin untuk menghapus",
+        "Bahan tidak ditemukan atau Anda tidak memiliki izin untuk menghapus",
         { status: 403 }
       );
     }
@@ -186,7 +231,7 @@ export async function DELETE(req: Request) {
 
     if (procurementCount > 0) {
       return new NextResponse(
-        "Tidak dapat menghapus item karena digunakan dalam procurement",
+        "Tidak dapat menghapus bahan karena digunakan dalam pengadaan",
         { status: 400 }
       );
     }
@@ -195,13 +240,13 @@ export async function DELETE(req: Request) {
       where: { id: Number(id) },
     });
 
-    console.log("Item berhasil dihapus:", deletedItem);
+    console.log("Bahan berhasil dihapus:", deletedItem);
     return NextResponse.json(
-      { message: "Item berhasil dihapus" },
+      { message: "Bahan berhasil dihapus" },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error saat menghapus item:", error);
-    return new NextResponse("Error saat menghapus item", { status: 500 });
+    console.error("Error saat menghapus bahan:", error);
+    return new NextResponse("Error saat menghapus bahan", { status: 500 });
   }
 }

@@ -52,6 +52,10 @@ export default function ProductionForm() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [groupedProcurementItems, setGroupedProcurementItems] = useState<{
+    [key: string]: ProcurementItem;
+  }>({});
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -66,7 +70,17 @@ export default function ProductionForm() {
           throw new Error("Invalid data format. Expected an array.");
         }
 
-        setProcurementItems(result);
+        // Kelompokkan item berdasarkan itemId
+        const grouped = result.reduce((acc, item) => {
+          const key = item.item.id;
+          // Hanya simpan satu item untuk setiap itemId
+          if (!acc[key]) {
+            acc[key] = item;
+          }
+          return acc;
+        }, {} as { [key: string]: ProcurementItem });
+
+        setGroupedProcurementItems(grouped);
       } catch (error) {
         console.error("Error fetching procurement data:", error);
         setError("Gagal memuat data pengadaan. Silakan coba lagi.");
@@ -171,7 +185,7 @@ export default function ProductionForm() {
               className="w-full border p-2 rounded"
             >
               <option value="">Pilih Bahan</option>
-              {procurementItems.map((procItem) => (
+              {Object.values(groupedProcurementItems).map((procItem) => (
                 <option key={procItem.id} value={procItem.id}>
                   {procItem.item.itemName} (Stok:{" "}
                   {procItem.currentQuantity.toFixed(2)} {procItem.item.unit})
@@ -196,6 +210,10 @@ export default function ProductionForm() {
               {...register(`items.${index}.quantity`, {
                 required: "Jumlah yang digunakan diperlukan",
                 valueAsNumber: true,
+                min: {
+                  value: 0,
+                  message: "Jumlah harus lebih besar dari 0",
+                },
                 validate: (value) =>
                   value > 0 || "Jumlah harus lebih besar dari 0",
               })}

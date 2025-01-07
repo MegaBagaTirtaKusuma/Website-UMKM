@@ -1,9 +1,7 @@
-// api/procurement/barchart/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { MonthlyProcurement } from "@/@types/MonthlyProcurement";
 
 export const dynamic = "force-dynamic";
 
@@ -50,13 +48,28 @@ export async function GET() {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
 
-    const monthlyTotal: MonthlyProcurement[] = [];
+    const monthlyProfit = [];
 
     for (let i = 0; i < 6; i++) {
       const month = (currentMonth - i + 12) % 12;
       const year = currentMonth - i < 0 ? currentYear - 1 : currentYear;
 
-      const total = await prisma.procurement.aggregate({
+      // Hitung total penjualan bulan ini
+      const totalSales = await prisma.sales.aggregate({
+        where: {
+          userId,
+          saleDate: {
+            gte: new Date(year, month, 1),
+            lt: new Date(year, month + 1, 1),
+          },
+        },
+        _sum: {
+          totalRevenue: true,
+        },
+      });
+
+      // Hitung total pengadaan bulan ini
+      const totalProcurement = await prisma.procurement.aggregate({
         where: {
           userId,
           purchaseDate: {
@@ -69,15 +82,19 @@ export async function GET() {
         },
       });
 
-      monthlyTotal.push({
+      const revenue = totalSales._sum?.totalRevenue || 0;
+      const expense = totalProcurement._sum?.totalPrice || 0;
+      const profit = revenue - expense;
+
+      monthlyProfit.push({
         name: bulanIndonesia[month],
-        total: total._sum?.totalPrice || 0,
+        total: profit,
       });
     }
 
-    return NextResponse.json(monthlyTotal.reverse());
+    return NextResponse.json(monthlyProfit.reverse());
   } catch (error) {
-    console.error("Error mengambil data pengadaan:", error);
-    return new NextResponse("Error mengambil data pengadaan", { status: 500 });
+    console.error("Error fetching profit data:", error);
+    return new NextResponse("Error fetching profit data", { status: 500 });
   }
 }

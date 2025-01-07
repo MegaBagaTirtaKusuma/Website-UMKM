@@ -1,3 +1,4 @@
+// components/SideNavbar.tsx
 "use client";
 
 import { Nav } from "./ui/nav";
@@ -6,16 +7,14 @@ import {
   ShoppingBasket,
   CircleDollarSign,
   LayoutDashboard,
-  UsersRound,
-  Wallet,
-  ChevronRight,
+  LogOut,
+  Box,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/context/PageTitleContext";
 
 const SideNavbar: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
   const [mobileWidth, setMobileWidth] = useState(false);
-  const [showProcurementMenu, setShowProcurementMenu] = useState(false);
   const { setPageTitle } = usePageTitle();
 
   useEffect(() => {
@@ -28,16 +27,6 @@ const SideNavbar: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
     return () => window.removeEventListener("resize", updateWidth);
   }, []);
 
-  const procurementSubMenus = [
-    {
-      title: "Manajemen Bahan",
-      href: "/item",
-      icon: ChevronRight,
-      variant: "ghost" as const,
-      onClick: () => setPageTitle("Pengadaan"),
-    },
-  ];
-
   const navLinks = [
     {
       title: "Dashboard",
@@ -47,16 +36,19 @@ const SideNavbar: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
       onClick: () => setPageTitle("Dashboard"),
     },
     {
+      title: "Manajemen Bahan",
+      href: "/item",
+      icon: Box,
+      variant: "ghost" as const,
+      onClick: () => setPageTitle("Manajemen Bahan"),
+    },
+    {
       title: "Pengadaan",
       href: "/procurement",
       icon: ShoppingBasket,
       variant: "ghost" as const,
-      onClick: () => {
-        setShowProcurementMenu(!showProcurementMenu);
-        setPageTitle("Pengadaan");
-      },
+      onClick: () => setPageTitle("Pengadaan"),
     },
-    ...(showProcurementMenu ? procurementSubMenus : []),
     {
       title: "Produksi",
       href: "/production",
@@ -72,16 +64,9 @@ const SideNavbar: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
       onClick: () => setPageTitle("Penjualan"),
     },
     {
-      title: "Keuangan",
-      href: "/finance",
-      icon: Wallet,
-      variant: "ghost" as const,
-      onClick: () => setPageTitle("Keuangan"),
-    },
-    {
       title: "Sign Out",
       href: "#",
-      icon: UsersRound,
+      icon: LogOut,
       variant: "ghost" as const,
       onClick: async () => {
         try {

@@ -1,9 +1,7 @@
-// api/procurement/barchart/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { MonthlyProcurement } from "@/@types/MonthlyProcurement";
 
 export const dynamic = "force-dynamic";
 
@@ -50,34 +48,34 @@ export async function GET() {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
 
-    const monthlyTotal: MonthlyProcurement[] = [];
+    const monthlyTotal = [];
 
     for (let i = 0; i < 6; i++) {
       const month = (currentMonth - i + 12) % 12;
       const year = currentMonth - i < 0 ? currentYear - 1 : currentYear;
 
-      const total = await prisma.procurement.aggregate({
+      const total = await prisma.sales.aggregate({
         where: {
           userId,
-          purchaseDate: {
+          saleDate: {
             gte: new Date(year, month, 1),
             lt: new Date(year, month + 1, 1),
           },
         },
         _sum: {
-          totalPrice: true,
+          totalRevenue: true,
         },
       });
 
       monthlyTotal.push({
         name: bulanIndonesia[month],
-        total: total._sum?.totalPrice || 0,
+        total: total._sum?.totalRevenue || 0,
       });
     }
 
     return NextResponse.json(monthlyTotal.reverse());
   } catch (error) {
-    console.error("Error mengambil data pengadaan:", error);
-    return new NextResponse("Error mengambil data pengadaan", { status: 500 });
+    console.error("Error fetching sales data:", error);
+    return new NextResponse("Error fetching sales data", { status: 500 });
   }
 }

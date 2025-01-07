@@ -31,15 +31,6 @@ export default function ProcurementPage() {
             <ItemTable />
           </SuspenseWrapper>
         </CardContent>
-
-        <CardContent className="flex justify-between gap-4">
-          <section className="flex-grow flex justify-center">
-            <p className="text-center">Edit Bahan</p>
-          </section>
-          <SuspenseWrapper>
-            <ItemEdit />
-          </SuspenseWrapper>
-        </CardContent>
       </section>
     </div>
   );

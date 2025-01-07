@@ -1,4 +1,3 @@
-// app/api/procurement/recent/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { jwtVerify } from "jose";
@@ -40,44 +39,44 @@ export async function GET() {
       1
     );
 
-    const recentProcurements = await prisma.procurement.findMany({
+    const recentSales = await prisma.sales.findMany({
       where: {
-        purchaseDate: {
+        saleDate: {
           gte: currentMonthStart,
         },
         userId: Number(userId),
       },
       orderBy: {
-        purchaseDate: "desc",
+        saleDate: "desc",
       },
       take: 5,
       include: {
-        item: {
+        production: {
           select: {
-            itemName: true,
+            productName: true,
           },
         },
       },
     });
 
-    const formattedProcurements = recentProcurements.map((procurement) => ({
-      id: procurement.id,
-      item: {
-        itemName: procurement.item.itemName,
+    const formattedSales = recentSales.map((sale) => ({
+      id: sale.id,
+      production: {
+        productName: sale.production.productName,
       },
-      supplierName: procurement.supplierName,
-      totalPrice: procurement.totalPrice,
-      purchaseDate: procurement.purchaseDate,
+      saleQuantity: sale.saleQuantity,
+      totalRevenue: sale.totalRevenue,
+      saleDate: sale.saleDate,
     }));
 
-    return NextResponse.json(formattedProcurements, { status: 200 });
+    return NextResponse.json(formattedSales, { status: 200 });
   } catch (error: unknown) {
-    console.error("Error fetching recent procurements:", error);
+    console.error("Error fetching recent sales:", error);
 
     if (error instanceof Error) {
       return NextResponse.json(
         {
-          error: "Failed to fetch recent procurements",
+          error: "Failed to fetch recent sales",
           message: error.message,
         },
         { status: 500 }
@@ -86,7 +85,7 @@ export async function GET() {
 
     return NextResponse.json(
       {
-        error: "Failed to fetch recent procurements",
+        error: "Failed to fetch recent sales",
         message: "Unknown error occurred",
       },
       { status: 500 }

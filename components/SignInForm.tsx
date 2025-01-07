@@ -42,18 +42,16 @@ const SignInForm = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to sign in");
+        throw new Error(errorData.message || "Gagal masuk");
       }
 
       const responseData = await response.json();
       localStorage.setItem("authToken", responseData.token);
       router.push("/");
     } catch (error) {
-      console.error("Sign-in error:", error);
+      console.error("Gagal masuk:", error);
       setError(
-        error instanceof Error
-          ? error.message
-          : "An error occurred while signing in."
+        error instanceof Error ? error.message : "Terjadi kesalahan saat masuk."
       );
     }
   };
@@ -98,7 +96,7 @@ const SignInForm = () => {
           </button>
         </div>
         {error && <p className="text-red-500 text-sm">{error}</p>}
-        <Button type="submit">Sign In</Button>
+        <Button type="submit">Masuk</Button>
         <Link
           href="/auth/forgot-password"
           className="text-sm text-blue-500 hover:underline"

@@ -56,15 +56,15 @@ export async function GET(req: Request) {
     });
 
     if (!itemData) {
-      return new NextResponse("Data item tidak ditemukan", {
+      return new NextResponse("Data bahan tidak ditemukan", {
         status: 404,
       });
     }
 
     return NextResponse.json(itemData, { status: 200 });
   } catch (error) {
-    console.error("Error fetching item data:", error);
-    return new NextResponse("Error fetching item data", { status: 500 });
+    console.error("Error fetching bahan data:", error);
+    return new NextResponse("Error fetching bahan data", { status: 500 });
   }
 }
 
@@ -79,12 +79,20 @@ export async function PUT(req: Request) {
 
     const token = tokenCookie.value;
 
-    // Verifikasi token
+    // Verifikasi token dan dapatkan userId
+    let userId: string | null = null;
     try {
-      await jwtVerify(token, SECRET);
+      const decoded = await jwtVerify(token, SECRET);
+      userId = decoded.payload.id as string;
     } catch (err) {
       console.error("Token tidak valid:", err);
       return new NextResponse("Token tidak valid", { status: 401 });
+    }
+
+    if (!userId) {
+      return new NextResponse("User ID tidak ditemukan di token", {
+        status: 401,
+      });
     }
 
     const data: {
@@ -94,41 +102,92 @@ export async function PUT(req: Request) {
       unit?: string;
     } = await req.json();
 
-    console.log("Data received for update:", data);
+    console.log("Data yang diterima untuk update:", data);
 
     const { id, itemName, category, unit } = data;
 
     // Validasi input
     if (!id || !itemName || !category) {
-      return new NextResponse("ID, itemName, and category are required", {
+      return new NextResponse("ID, nama bahan, dan kategori wajib diisi", {
         status: 400,
       });
     }
 
-    // Update item data in the database
+    // Cek apakah item dengan nama yang sama sudah ada
+    const existingItem = await prisma.item.findFirst({
+      where: {
+        itemName: {
+          equals: itemName,
+          mode: "insensitive",
+        },
+        userId: Number(userId),
+        id: {
+          not: Number(id),
+        },
+      },
+    });
+
+    if (existingItem) {
+      return NextResponse.json(
+        {
+          error: `Bahan dengan nama '${itemName}' sudah ada dalam daftar Anda`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Cek apakah item yang akan diupdate ada dan milik user yang benar
+    const currentItem = await prisma.item.findFirst({
+      where: {
+        id: Number(id),
+        userId: Number(userId),
+      },
+    });
+
+    if (!currentItem) {
+      return NextResponse.json(
+        {
+          error: "Bahan tidak ditemukan atau Anda tidak memiliki akses",
+        },
+        { status: 404 }
+      );
+    }
+
     const updatedItem = await prisma.item.update({
       where: { id: Number(id) },
       data: {
-        itemName,
+        itemName: itemName.trim(),
         category,
         unit: unit || null,
       },
     });
 
-    return NextResponse.json(updatedItem, { status: 200 });
+    return NextResponse.json(
+      {
+        message: "Bahan berhasil diperbarui",
+        data: updatedItem,
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error("Error updating item data:", error);
+    console.error("Error detail:", error); // Untuk debugging
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // Prisma error
-      return new NextResponse(`Database error: ${error.message}`, {
-        status: 500,
-      });
-    } else if (error instanceof Error) {
-      // Other known errors
-      return new NextResponse(`Error: ${error.message}`, { status: 500 });
-    } else {
-      // Unknown errors
-      return new NextResponse("An unknown error occurred", { status: 500 });
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          {
+            error: `Bahan dengan nama tersebut sudah ada dalam daftar Anda`,
+          },
+          { status: 400 }
+        );
+      }
     }
+
+    return NextResponse.json(
+      {
+        error: "Terjadi kesalahan saat memperbarui bahan. Silakan coba lagi.",
+      },
+      { status: 500 }
+    );
   }
 }

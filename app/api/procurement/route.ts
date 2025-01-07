@@ -15,7 +15,7 @@ async function verifyToken(token: string) {
     const decoded = await jwtVerify(token, SECRET);
     return decoded.payload.id;
   } catch (err) {
-    console.error("Invalid token:", err);
+    console.error("Token tidak valid:", err);
     return null;
   }
 }
@@ -25,12 +25,12 @@ export async function GET() {
   try {
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
-      return new NextResponse("Token not provided", { status: 401 });
+      return new NextResponse("Token tidak ditemukan", { status: 401 });
     }
 
     const userId = await verifyToken(tokenCookie.value);
     if (!userId) {
-      return new NextResponse("Invalid token", { status: 401 });
+      return new NextResponse("Token tidak valid", { status: 401 });
     }
 
     // Fetch all procurement data from DB for the specific user
@@ -60,18 +60,18 @@ export async function POST(req: Request) {
 
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
-      return new NextResponse("Token not provided", { status: 401 });
+      return new NextResponse("Token tidak ditemukan", { status: 401 });
     }
 
     const userId = await verifyToken(tokenCookie.value);
     if (!userId) {
-      return new NextResponse("Invalid token", { status: 401 });
+      return new NextResponse("Token tidak valid", { status: 401 });
     }
 
     // Pastikan userId adalah number
     const userIdNumber = Number(userId);
     if (isNaN(userIdNumber)) {
-      return new NextResponse("Invalid user ID", { status: 401 });
+      return new NextResponse("ID pengguna tidak valid", { status: 401 });
     }
 
     // Periksa apakah user dengan ID ini ada
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
-      return new NextResponse("User not found", { status: 404 });
+      return new NextResponse("Pengguna tidak ditemukan", { status: 404 });
     }
 
     const { itemId, initialQuantity, totalPrice, supplierName, purchaseDate } =
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
       !purchaseDate
     ) {
       return new NextResponse(
-        "ItemId, initialQuantity, totalPrice, and purchaseDate are required",
+        "ItemId, initialQuantity, totalPrice, dan purchaseDate wajib diisi",
         { status: 400 }
       );
     }
@@ -104,66 +104,77 @@ export async function POST(req: Request) {
 
     if (isNaN(parsedInitialQuantity) || isNaN(parsedTotalPrice)) {
       return new NextResponse(
-        "Initial quantity and total price must be valid numbers",
+        "Initial quantity dan total harga harus berupa angka yang valid",
         { status: 400 }
       );
     }
 
     const parsedPurchaseDate = new Date(purchaseDate);
     if (isNaN(parsedPurchaseDate.getTime())) {
-      return new NextResponse("Invalid purchaseDate", { status: 400 });
+      return new NextResponse("Tanggal pembelian tidak valid", { status: 400 });
     }
 
     // Check if the item exists
     const item = await prisma.item.findUnique({ where: { id: itemId } });
     if (!item) {
-      return new NextResponse("Item not found", { status: 404 });
+      return new NextResponse("Bahan tidak ditemukan", { status: 404 });
     }
 
     // Create new procurement entry
-    const newProcurement = await prisma.procurement.create({
-      data: {
-        itemId,
-        initialQuantity: parsedInitialQuantity,
-        currentQuantity: parsedInitialQuantity,
-        totalPrice: parsedTotalPrice,
-        supplierName: supplierName || null,
-        purchaseDate: parsedPurchaseDate,
-        userId: userIdNumber,
-      },
-      include: { item: true },
+    const newProcurement = await prisma.$transaction(async (tx) => {
+      // Cari procurement terakhir untuk item ini untuk mendapatkan currentQuantity terkini
+      const lastProcurement = await tx.procurement.findFirst({
+        where: {
+          itemId,
+          userId: userIdNumber,
+        },
+        orderBy: {
+          id: "desc",
+        },
+      });
+
+      // Hitung currentQuantity baru
+      const currentStockQuantity = lastProcurement?.currentQuantity || 0;
+      const newCurrentQuantity = currentStockQuantity + parsedInitialQuantity;
+
+      // Buat procurement baru
+      const procurement = await tx.procurement.create({
+        data: {
+          itemId,
+          initialQuantity: parsedInitialQuantity,
+          currentQuantity: newCurrentQuantity, // Set ke total stok baru
+          totalPrice: parsedTotalPrice,
+          supplierName: supplierName || null,
+          purchaseDate: parsedPurchaseDate,
+          userId: userIdNumber,
+        },
+        include: { item: true },
+      });
+
+      // Update currentQuantity untuk semua procurement dengan itemId yang sama
+      await tx.procurement.updateMany({
+        where: {
+          itemId,
+          userId: userIdNumber,
+        },
+        data: {
+          currentQuantity: newCurrentQuantity,
+        },
+      });
+
+      // Ambil procurement yang sudah diupdate
+      const updatedProcurement = await tx.procurement.findUnique({
+        where: { id: procurement.id },
+        include: { item: true },
+      });
+
+      return updatedProcurement;
     });
-
-    // Calculate total quantity for this item
-    const totalQuantity = await prisma.procurement.aggregate({
-      where: {
-        itemId,
-        userId: userIdNumber,
-      },
-      _sum: {
-        initialQuantity: true,
-      },
-    });
-
-    const newTotalQuantity = totalQuantity._sum.initialQuantity || 0;
-
-    // Update currentQuantity for all procurements of this item
-    await prisma.procurement.updateMany({
-      where: {
-        itemId,
-        userId: userIdNumber,
-      },
-      data: {
-        currentQuantity: newTotalQuantity,
-      },
-    });
-
-    console.log("New procurement created:", newProcurement);
 
     return NextResponse.json(newProcurement, { status: 201 });
   } catch (error) {
-    console.error("Error saving procurement:", error);
-    return new NextResponse("Error saving procurement", { status: 500 });
+    console.error("Error menyimpan pengadaan:", error);
+    return new NextResponse("Error menyimpan pengadaan", { status: 500 });
   }
 }
 // DELETE - Delete procurement data by ID
@@ -173,17 +184,17 @@ export async function DELETE(req: Request) {
     const id = url.searchParams.get("id");
 
     if (!id) {
-      return new NextResponse("ID not provided", { status: 400 });
+      return new NextResponse("ID tidak ditemukan", { status: 400 });
     }
 
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
-      return new NextResponse("Token not provided", { status: 401 });
+      return new NextResponse("Token tidak ditemukan", { status: 401 });
     }
 
     const userId = await verifyToken(tokenCookie.value);
     if (!userId) {
-      return new NextResponse("Invalid token", { status: 401 });
+      return new NextResponse("Token tidak valid", { status: 401 });
     }
 
     // Get the procurement to be deleted
@@ -192,7 +203,7 @@ export async function DELETE(req: Request) {
     });
 
     if (!procurementToDelete) {
-      return new NextResponse("Procurement not found", { status: 404 });
+      return new NextResponse("Pengadaan tidak ditemukan", { status: 404 });
     }
 
     // Delete related production items first (to avoid foreign key constraint violation)
@@ -226,13 +237,13 @@ export async function DELETE(req: Request) {
     });
 
     return NextResponse.json(
-      { message: "Data successfully deleted" },
+      { message: "Data berhasil dihapus" },
       {
         status: 200,
       }
     );
   } catch (error) {
-    console.error("Error deleting procurement:", error);
-    return new NextResponse("Error deleting procurement", { status: 500 });
+    console.error("Error menghapus pengadaan:", error);
+    return new NextResponse("Error menghapus pengadaan", { status: 500 });
   }
 }

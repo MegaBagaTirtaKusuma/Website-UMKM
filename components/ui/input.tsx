@@ -1,6 +1,7 @@
 //components/ui/input.tsx
 
 import React from "react";
+import { cn } from "@/lib/utils";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -10,26 +11,37 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, id, ...props }, ref) => {
+  ({ label, error, className, type, step, ...props }, ref) => {
     return (
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id} className="font-medium">
-          {label}
-        </label>
-        <input
-          id={id}
-          ref={ref}
-          className={`border p-2 rounded ${
-            error ? "border-red-500" : "border-gray-300"
-          }`}
-          {...props}
-        />
-        {error && <p className="text-red-500 text-sm">{error.message}</p>}
+      <div className="w-full">
+        {label && (
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {label}
+          </label>
+        )}
+        <div className="relative">
+          <input
+            type={type}
+            step={step}
+            className={cn(
+              "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+              type === "date" &&
+                "[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-2",
+              error && "border-red-500",
+              className
+            )}
+            ref={ref}
+            {...props}
+          />
+        </div>
+        {error && error.message && (
+          <p className="mt-1 text-sm text-red-500">{error.message}</p>
+        )}
       </div>
     );
   }
 );
 
-Input.displayName = "Input"; // Untuk debugging, menambahkan nama komponen
+Input.displayName = "Input";
 
 export default Input;

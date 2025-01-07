@@ -1,6 +1,7 @@
 // ProcurementTable.tsx
 "use client";
 import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import {
   Table,
@@ -33,9 +34,6 @@ interface ProcurementItem {
 }
 
 const ProcurementTable = () => {
-  const [data, setData] = useState<ProcurementItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -45,38 +43,27 @@ const ProcurementTable = () => {
 
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
+  // Modifikasi fetcher untuk mengembalikan data JSON
+  const fetcher = async (url: string) => {
+    const response = await fetchWithAuth(url);
+    return response.json();
+  };
 
-      try {
-        const response = await fetchWithAuth("/api/procurement", {
-          method: "GET",
-        });
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status} ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        console.log("Fetched data:", result);
-        setData(result);
-      } catch (error) {
-        console.error("Error fetching procurement data:", error);
-        setError("Gagal memuat data pengadaan. Silakan coba lagi.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const totalPages = Math.ceil(data.length / itemsPerPage);
-  const paginatedData = data.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  // Menggunakan SWR dengan fetcher yang sudah dimodifikasi
+  const { data, error, isLoading, mutate } = useSWR<ProcurementItem[]>(
+    "/api/procurement",
+    fetcher,
+    {
+      refreshInterval: 1000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
   );
+
+  const totalPages = Math.ceil((data?.length || 0) / itemsPerPage);
+  const paginatedData =
+    data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ||
+    [];
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString("id-ID", {
@@ -104,7 +91,7 @@ const ProcurementTable = () => {
         }
       );
       if (response.ok) {
-        setData(data.filter((item) => item.id !== itemToDelete.id));
+        mutate(); // Refresh data setelah menghapus
         setItemToDelete(null);
         setIsDeleting(false);
         alert("Data berhasil dihapus!");
@@ -119,11 +106,11 @@ const ProcurementTable = () => {
 
   const handleDeleteCancel = () => {
     setIsDeleting(false);
+    setItemToDelete(null);
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div className="text-red-500">Error memuat data</div>;
 
   if (error) {
     return <div className="text-red-500">{error}</div>;

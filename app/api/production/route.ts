@@ -4,6 +4,27 @@ import prisma from "../../../lib/prisma";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
+interface ProductionWithItems {
+  id: number;
+  productName: string;
+  productionDate: Date;
+  productionQuantity: number;
+  userId: number;
+  items: {
+    id: number;
+    quantity: number;
+    procurementId: number;
+    productionId: number;
+    procurement: {
+      item: {
+        id: number;
+        itemName: string;
+        unit: string | null;
+      };
+    };
+  }[];
+}
+
 // Mendeklarasikan secret key untuk JWT
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "defaultsecret"
@@ -125,72 +146,93 @@ export async function POST(req: Request) {
     }
 
     // Memulai transaksi untuk memastikan konsistensi data
-    const production = await prisma.$transaction(async (prisma) => {
-      // Membuat produksi baru dengan menghubungkan userId
-      const newProduction = await prisma.production.create({
-        data: {
-          productName,
-          productionDate: parsedProductionDate,
-          productionQuantity,
-          userId,
-          items: {
-            create: items.map(
-              (item: { procurementId: number; quantity: number }) => ({
-                quantity: Number(item.quantity.toFixed(2)), // Pastikan quantity disimpan sebagai number dengan 2 desimal
-                procurement: {
-                  connect: { id: item.procurementId },
-                },
-              })
-            ),
+    const result: ProductionWithItems = await prisma.$transaction(
+      async (tx) => {
+        // Membuat produksi baru dengan menghubungkan userId
+        const newProduction = await tx.production.create({
+          data: {
+            productName,
+            productionDate: parsedProductionDate,
+            productionQuantity,
+            userId,
+            items: {
+              create: items.map(
+                (item: { procurementId: number; quantity: number }) => ({
+                  quantity: Number(item.quantity.toFixed(2)),
+                  procurement: {
+                    connect: { id: item.procurementId },
+                  },
+                })
+              ),
+            },
           },
-        },
-        include: {
-          items: {
-            include: {
-              procurement: {
-                include: {
-                  item: true,
+          include: {
+            items: {
+              include: {
+                procurement: {
+                  include: {
+                    item: true,
+                  },
                 },
               },
             },
           },
-        },
-      });
-
-      // Update quantity procurement setelah produksi
-      for (const item of items) {
-        const procurement = await prisma.procurement.findUnique({
-          where: { id: item.procurementId },
         });
 
-        if (!procurement) {
-          throw new Error(
-            `Procurement with id ${item.procurementId} not found`
+        // Update quantity procurement setelah produksi
+        for (const item of items) {
+          // Dapatkan procurement yang dipilih untuk mendapatkan itemId
+          const selectedProcurement = await tx.procurement.findUnique({
+            where: { id: item.procurementId },
+          });
+
+          if (!selectedProcurement) {
+            throw new Error(
+              `Procurement with id ${item.procurementId} not found`
+            );
+          }
+
+          // Update semua procurement dengan itemId yang sama
+          const allProcurements = await tx.procurement.findMany({
+            where: {
+              itemId: selectedProcurement.itemId,
+              userId,
+            },
+          });
+
+          if (allProcurements.length === 0) {
+            throw new Error(
+              `No procurements found for item ${selectedProcurement.itemId}`
+            );
+          }
+
+          const newQuantity = Number(
+            (allProcurements[0].currentQuantity - item.quantity).toFixed(2)
           );
+
+          if (newQuantity < 0) {
+            throw new Error(
+              `Not enough stock for item ${selectedProcurement.itemId}`
+            );
+          }
+
+          // Update currentQuantity untuk semua procurement dengan itemId yang sama
+          await tx.procurement.updateMany({
+            where: {
+              itemId: selectedProcurement.itemId,
+              userId,
+            },
+            data: {
+              currentQuantity: newQuantity,
+            },
+          });
         }
 
-        const newQuantity = Number(
-          (procurement.currentQuantity - item.quantity).toFixed(2)
-        );
-
-        if (newQuantity < 0) {
-          throw new Error(
-            `Not enough stock for procurement ${item.procurementId}`
-          );
-        }
-
-        await prisma.procurement.update({
-          where: { id: item.procurementId },
-          data: {
-            currentQuantity: newQuantity,
-          },
-        });
+        return newProduction;
       }
+    );
 
-      return newProduction;
-    });
-
-    return NextResponse.json(production, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error("Error saving production:", error);
     return new NextResponse(

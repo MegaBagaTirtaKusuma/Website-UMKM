@@ -37,29 +37,46 @@ export async function GET() {
 
     console.log("UserId ditemukan:", userId);
 
-    const lowStockItems = await prisma.procurement.findMany({
+    // Ambil data procurement dengan grouping berdasarkan itemId
+    const lowStockItems = await prisma.procurement.groupBy({
+      by: ["itemId"],
       where: {
         currentQuantity: {
-          lte: 10,
+          lte: 2,
         },
         item: {
           category: "Bahan Baku Produksi",
         },
         userId: Number(userId),
       },
-      select: {
-        id: true,
+      _min: {
         currentQuantity: true,
-        item: {
+      },
+    });
+
+    // Ambil detail item untuk setiap itemId yang unique
+    const itemDetails = await Promise.all(
+      lowStockItems.map(async (item) => {
+        const itemDetail = await prisma.item.findUnique({
+          where: { id: item.itemId },
           select: {
             itemName: true,
             unit: true,
           },
-        },
-      },
-    });
+        });
 
-    return NextResponse.json(lowStockItems);
+        return {
+          id: item.itemId,
+          currentQuantity: item._min.currentQuantity || 0,
+          item: {
+            itemName: itemDetail?.itemName || "",
+            unit: itemDetail?.unit,
+          },
+        };
+      })
+    );
+
+    return NextResponse.json(itemDetails);
   } catch (error) {
     console.error("Error fetching low stock items:", error);
     return new NextResponse("Error fetching low stock items", { status: 500 });

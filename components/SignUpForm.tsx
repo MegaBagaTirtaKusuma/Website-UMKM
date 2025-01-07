@@ -46,16 +46,16 @@ const SignUpForm = () => {
         if (response.status === 409) {
           setError("Email sudah digunakan. Silakan gunakan email lain.");
         } else {
-          setError(result.message || "Error signing up");
+          setError(result.message || "Gagal mendaftar");
         }
         return;
       }
 
-      setSuccess("Account created successfully. Redirecting to sign-in...");
+      setSuccess("Akun berhasil dibuat. Redirecting to sign-in...");
       setError(null);
       setTimeout(() => router.push("/auth/sign-in"), 2000);
     } catch (error) {
-      setError("An error occurred while signing up.");
+      setError("Terjadi kesalahan saat mendaftar.");
     }
   };
 
@@ -153,8 +153,9 @@ const FormField = ({
 
   if (type === "email") {
     registerOptions.pattern = {
-      value: /\S+@\S+\.\S+/,
-      message: "Format email tidak valid.",
+      // Pola validasi email yang lebih ketat
+      value: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+      message: "Format email tidak valid. Contoh: nama@domain.com",
     };
   }
 

@@ -1,7 +1,7 @@
-// components/ItemTable.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import {
   Table,
   TableHeader,
@@ -23,9 +23,6 @@ interface Item {
 }
 
 const ItemTable = () => {
-  const [data, setData] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -33,38 +30,27 @@ const ItemTable = () => {
 
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
+  // Modifikasi fetcher untuk mengembalikan data JSON
+  const fetcher = async (url: string) => {
+    const response = await fetchWithAuth(url);
+    return response.json();
+  };
 
-      try {
-        const response = await fetchWithAuth("/api/procurement/item", {
-          method: "GET",
-        });
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status} ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        console.log("Fetched data:", result);
-        setData(result);
-      } catch (error) {
-        console.error("Error fetching item data:", error);
-        setError("Gagal memuat data item. Silakan coba lagi.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const totalPages = Math.ceil(data.length / itemsPerPage);
-  const paginatedData = data.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  // Menggunakan SWR dengan fetcher yang sudah dimodifikasi
+  const { data, error, isLoading, mutate } = useSWR<Item[]>(
+    "/api/procurement/item",
+    fetcher,
+    {
+      refreshInterval: 1000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
   );
+
+  const totalPages = Math.ceil((data?.length || 0) / itemsPerPage);
+  const paginatedData =
+    data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ||
+    [];
 
   const handleEdit = (id: number) => {
     router.push(`/item/edit?id=${id}`);
@@ -85,17 +71,17 @@ const ItemTable = () => {
         }
       );
       if (response.ok) {
-        setData(data.filter((item) => item.id !== itemToDelete.id));
+        mutate(); // Refresh data setelah menghapus
         setItemToDelete(null);
         setIsDeleting(false);
-        alert("Item berhasil dihapus!");
+        alert("Bahan berhasil dihapus!");
       } else {
         const errorData = await response.json();
-        alert(`Gagal menghapus item: ${errorData.message}`);
+        alert(`Gagal menghapus bahan: ${errorData.message}`);
       }
     } catch (error) {
-      console.error("Error deleting item:", error);
-      alert("Gagal menghapus item. Terjadi kesalahan pada server.");
+      console.error("Error menghapus bahan:", error);
+      alert("Gagal menghapus bahan. Terjadi kesalahan pada server.");
     }
   };
 
@@ -104,7 +90,7 @@ const ItemTable = () => {
     setItemToDelete(null);
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 

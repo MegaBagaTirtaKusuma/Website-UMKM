@@ -16,12 +16,12 @@ export async function GET(req: Request) {
     const id = url.searchParams.get("id");
 
     if (!id) {
-      return new NextResponse("Procurement ID not provided", { status: 400 });
+      return new NextResponse("ID pengadaan tidak diberikan", { status: 400 });
     }
 
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
-      return new NextResponse("Token not found", { status: 401 });
+      return new NextResponse("Token tidak ditemukan", { status: 401 });
     }
 
     let decoded;
@@ -29,12 +29,14 @@ export async function GET(req: Request) {
       decoded = await jwtVerify(tokenCookie.value, SECRET);
     } catch (err) {
       console.error("Invalid token:", err);
-      return new NextResponse("Invalid token", { status: 401 });
+      return new NextResponse("Token tidak valid", { status: 401 });
     }
 
     const userId = decoded.payload.id;
     if (!userId) {
-      return new NextResponse("User ID not found in token", { status: 401 });
+      return new NextResponse("ID pengguna tidak ditemukan dalam token", {
+        status: 401,
+      });
     }
 
     const procurementData = await prisma.procurement.findUnique({
@@ -47,7 +49,9 @@ export async function GET(req: Request) {
     });
 
     if (!procurementData) {
-      return new NextResponse("Procurement data not found", { status: 404 });
+      return new NextResponse("Data pengadaan tidak ditemukan", {
+        status: 404,
+      });
     }
 
     const result = {
@@ -57,8 +61,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    console.error("Error fetching procurement data:", error);
-    return new NextResponse("Error fetching procurement data", { status: 500 });
+    console.error("Error mengambil data pengadaan:", error);
+    return new NextResponse("Error mengambil data pengadaan", { status: 500 });
   }
 }
 
@@ -93,14 +97,16 @@ export async function PUT(req: Request) {
       !purchaseDate
     ) {
       return new NextResponse(
-        "ID, itemId, initialQuantity, currentQuantity, totalPrice, and purchaseDate are required",
+        "ID, itemId, initialQuantity, currentQuantity, totalPrice, dan tanggal pembelian wajib diisi",
         { status: 400 }
       );
     }
 
     const parsedPurchaseDate = new Date(purchaseDate);
     if (isNaN(parsedPurchaseDate.getTime())) {
-      return new NextResponse("Invalid purchaseDate format", { status: 400 });
+      return new NextResponse("Format tanggal pembelian tidak valid", {
+        status: 400,
+      });
     }
 
     const updatedProcurement = await prisma.procurement.update({
@@ -117,7 +123,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json(updatedProcurement, { status: 200 });
   } catch (error) {
-    console.error("Error updating procurement data:", error);
-    return new NextResponse("Error updating procurement data", { status: 500 });
+    console.error("Error mengubah pengadaan:", error);
+    return new NextResponse("Error mengubah pengadaan", { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ interface ResetPasswordFormData {
 
 export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -46,14 +48,36 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         });
         const result = await response.json();
         setIsTokenValid(result.valid);
+
+        if (!result.valid) {
+          setMessage(
+            result.message ||
+              "Token reset sudah kedaluwarsa. Silakan ulang reset password baru."
+          );
+        }
       } catch (error) {
         console.error("Error verifying token:", error);
         setIsTokenValid(false);
+        setMessage(
+          "Terjadi kesalahan saat memverifikasi token. Silakan coba lagi."
+        );
       }
     };
 
     verifyToken();
   }, [token]);
+
+  // Tampilan ketika token tidak valid
+  if (!isTokenValid) {
+    return (
+      <div className="text-center">
+        <p className="text-red-500 mb-4">{message}</p>
+        <Button onClick={() => router.push("/auth/forgot-password")}>
+          Kirim Ulang Reset Password
+        </Button>
+      </div>
+    );
+  }
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     setIsSubmitting(true);
@@ -65,8 +89,14 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       });
       const result = await response.json();
       setMessage(result.message);
+
+      if (response.ok) {
+        setTimeout(() => {
+          router.push("/auth/sign-in");
+        }, 2000);
+      }
     } catch (error) {
-      setMessage("An error occurred. Please try again.");
+      setMessage("Terjadi kesalahan. Silakan coba lagi.");
     }
     setIsSubmitting(false);
   };

@@ -17,6 +17,7 @@ model Item {
   userId       Int
   user         User          @relation(fields: [userId], references: [id])
 
+  @@unique([itemName, userId])  // unique constraint untuk kombinasi itemName dan userId
   @@index([userId])
 }
 

@@ -1,4 +1,3 @@
-// components/ItemForm.tsx
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -30,13 +29,13 @@ const ITEM_UNITS = {
   LITER: "Liter",
 } as const;
 
-type ItemUnit = (typeof ITEM_UNITS)[keyof typeof ITEM_UNITS];
-type ItemCategory = (typeof ITEM_CATEGORIES)[keyof typeof ITEM_CATEGORIES];
+type ItemUnit = keyof typeof ITEM_UNITS;
+type ItemCategory = keyof typeof ITEM_CATEGORIES;
 
 interface FormValues {
   itemName: string;
   category: ItemCategory;
-  unit?: ItemUnit;
+  unit: ItemUnit;
 }
 
 interface FormFieldProps {
@@ -57,7 +56,7 @@ const FormField = ({
   maxLength,
 }: FormFieldProps) => {
   const registerOptions: any = {
-    required: required ? `Kolom ${label} diperlukan.` : false,
+    required: required ? `${label} wajib diisi.` : false,
     maxLength: maxLength
       ? {
           value: maxLength,
@@ -89,6 +88,7 @@ const FormField = ({
 export default function ItemForm() {
   const [category, setCategory] = useState<ItemCategory | "">("");
   const [unit, setUnit] = useState<ItemUnit | "">("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const {
     register,
@@ -98,6 +98,17 @@ export default function ItemForm() {
   } = useForm<FormValues>();
 
   const onSubmit = async (data: FormValues) => {
+    // Validasi category dan unit
+    if (!category) {
+      setErrorMessage("Kategori harus dipilih");
+      return;
+    }
+
+    if (!unit) {
+      setErrorMessage("Satuan harus dipilih");
+      return;
+    }
+
     try {
       const response = await fetch("/api/procurement/item", {
         method: "POST",
@@ -105,24 +116,29 @@ export default function ItemForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...data,
-          category,
-          unit, // Include unit in the request body
+          itemName: data.itemName.trim(),
+          category: ITEM_CATEGORIES[category],
+          unit: ITEM_UNITS[unit],
         }),
       });
 
       const result = await response.json();
-      if (response.ok) {
-        alert("Bahan berhasil disimpan!");
-        reset();
-        setCategory("");
-        setUnit(""); // Reset unit state
-      } else {
-        alert(`Error: ${result.error}`);
+
+      if (!response.ok) {
+        setErrorMessage(
+          result.error || "Terjadi kesalahan saat menyimpan bahan"
+        );
+        return;
       }
+
+      alert("Bahan berhasil disimpan!");
+      reset();
+      setCategory("");
+      setUnit("");
+      setErrorMessage("");
     } catch (error) {
-      console.error(error);
-      alert("Error saat menyimpan bahan.");
+      console.error("Error saat menyimpan bahan:", error);
+      setErrorMessage("Terjadi kesalahan pada sistem. Silakan coba lagi.");
     }
   };
 
@@ -135,15 +151,18 @@ export default function ItemForm() {
       >
         <Select
           value={category}
-          onValueChange={(value: ItemCategory) => setCategory(value)}
+          onValueChange={(value: ItemCategory) => {
+            setCategory(value);
+            setErrorMessage("");
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Pilih Kategori Bahan" />
           </SelectTrigger>
           <SelectContent>
-            {Object.values(ITEM_CATEGORIES).map((cat) => (
-              <SelectItem key={cat} value={cat}>
-                {cat}
+            {Object.entries(ITEM_CATEGORIES).map(([key, value]) => (
+              <SelectItem key={key} value={key}>
+                {value}
               </SelectItem>
             ))}
           </SelectContent>
@@ -160,19 +179,28 @@ export default function ItemForm() {
 
         <Select
           value={unit}
-          onValueChange={(value: ItemUnit) => setUnit(value)}
+          onValueChange={(value: ItemUnit) => {
+            setUnit(value);
+            setErrorMessage("");
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Pilih Satuan" />
           </SelectTrigger>
           <SelectContent>
-            {Object.values(ITEM_UNITS).map((unitOption) => (
-              <SelectItem key={unitOption} value={unitOption}>
-                {unitOption}
+            {Object.entries(ITEM_UNITS).map(([key, value]) => (
+              <SelectItem key={key} value={key}>
+                {value}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+
+        {errorMessage && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded">
+            {errorMessage}
+          </div>
+        )}
 
         <Button type="submit" variant="default">
           Simpan Bahan

@@ -91,8 +91,6 @@ export default function SalesForm() {
 
   return (
     <div className="border border-gray-300 rounded-lg p-6 shadow-md bg-white">
-      <h1 className="text-lg font-semibold mb-4">Formulir Penjualan</h1>
-
       {serverError && (
         <div className="p-3 mb-4 text-red-700 bg-red-100 rounded-md">
           {serverError}

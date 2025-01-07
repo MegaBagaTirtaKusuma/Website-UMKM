@@ -58,10 +58,10 @@ export default function ProcurementEdit() {
           const data = await response.json();
           setItems(data);
         } else {
-          console.error("Failed to fetch items");
+          console.error("Gagal mengambil bahan");
         }
       } catch (error) {
-        console.error("Error fetching items:", error);
+        console.error("Error mengambil bahan:", error);
       }
     };
 
@@ -91,12 +91,12 @@ export default function ProcurementEdit() {
               .split("T")[0],
           });
         } else {
-          alert("Data not found!");
+          alert("Data tidak ditemukan!");
           router.push("/procurement");
         }
       } catch (error) {
-        console.error("Error fetching procurement data:", error);
-        alert("Failed to fetch procurement data");
+        console.error("Error mengambil data pengadaan:", error);
+        alert("Gagal mengambil data pengadaan");
         router.push("/procurement");
       } finally {
         setLoading(false);
@@ -116,14 +116,14 @@ export default function ProcurementEdit() {
 
       const result = await response.json();
       if (response.ok) {
-        alert("Procurement updated successfully!");
+        alert("Pengadaan berhasil diubah!");
         router.push("/procurement");
       } else {
         alert(`Error: ${result.error}`);
       }
     } catch (error) {
-      console.error("Error saving procurement data:", error);
-      alert("Error updating procurement.");
+      console.error("Error mengubah pengadaan:", error);
+      alert("Error mengubah pengadaan.");
     }
   };
 
@@ -153,29 +153,29 @@ export default function ProcurementEdit() {
               step={type === "number" ? "0.01" : undefined}
               placeholder={label}
               {...register(name, {
-                required: required ? `${label} is required.` : false,
+                required: required ? `${label} wajib diisi.` : false,
                 max:
                   type === "date"
                     ? {
                         value: maxDate,
-                        message: `${label} cannot be later than today.`,
+                        message: `${label} tidak boleh lebih besar dari hari ini.`,
                       }
                     : undefined,
                 min:
                   type === "number"
-                    ? { value: 0, message: `${label} must be 0 or greater.` }
+                    ? { value: 0, message: `${label} harus 0 atau lebih.` }
                     : undefined,
                 maxLength: maxLength
                   ? {
                       value: maxLength,
-                      message: `${label} cannot exceed ${maxLength} characters.`,
+                      message: `${label} tidak boleh lebih besar dari ${maxLength} karakter.`,
                     }
                   : undefined,
               })}
               max={type === "date" ? maxDate : undefined}
             />
           </TooltipTrigger>
-          <TooltipContent>Enter {label.toLowerCase()}</TooltipContent>
+          <TooltipContent>Masukkan {label.toLowerCase()}</TooltipContent>
         </Tooltip>
         {errors[name] && (
           <p className="text-red-500 text-sm mt-1">{errors[name]?.message}</p>
@@ -201,7 +201,7 @@ export default function ProcurementEdit() {
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select Item" />
+            <SelectValue placeholder="Pilih Bahan" />
           </SelectTrigger>
           <SelectContent>
             {items.map((item) => (
@@ -216,30 +216,30 @@ export default function ProcurementEdit() {
           <>
             <FormField
               name="initialQuantity"
-              label={`Initial Quantity (${selectedItem.unit || "Unit"})`}
+              label={`Jumlah Awal (${selectedItem.unit || "Unit"})`}
               type="number"
               required
             />
             <FormField
               name="currentQuantity"
-              label={`Current Quantity (${selectedItem.unit || "Unit"})`}
+              label={`Jumlah Saat Ini (${selectedItem.unit || "Unit"})`}
               type="number"
               required
             />
             <FormField
               name="totalPrice"
-              label="Total Price"
+              label="Total Harga"
               type="number"
               required
             />
             <FormField
               name="supplierName"
-              label="Supplier Name"
+              label="Nama Supplier"
               maxLength={255}
             />
             <FormField
               name="purchaseDate"
-              label="Purchase Date"
+              label="Tanggal Pengadaan"
               type="date"
               required
             />
@@ -247,7 +247,7 @@ export default function ProcurementEdit() {
         )}
 
         <Button type="submit" variant="default" disabled={!selectedItem}>
-          Save Changes
+          Simpan Perubahan
         </Button>
       </form>
     </TooltipProvider>

@@ -158,7 +158,7 @@ export async function GET(req: Request) {
 
       const ws = XLSX.utils.json_to_sheet(tableData);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Procurement Report");
+      XLSX.utils.book_append_sheet(wb, ws, "Laporan Pengadaan");
 
       const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
 
@@ -174,7 +174,7 @@ export async function GET(req: Request) {
 
     return new NextResponse("Format tidak dikenali", { status: 400 });
   } catch (error) {
-    console.error("Error during procurement export:", error);
+    console.error("Error saat ekspor pengadaan:", error);
     return new NextResponse("Terjadi kesalahan saat memproses ekspor", {
       status: 500,
     });

@@ -30,34 +30,34 @@ const Pagination: React.FC<PaginationProps> = ({
 
   return (
     <div className="flex items-center justify-end mt-2 space-x-1">
-      {/* Tombol Previous */}
       <button
         onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className="px-1 py-0.5 border rounded text-xs"
+        aria-label="Previous page"
       >
         Previous
       </button>
 
-      {/* Informasi Halaman */}
       <span className="px-1 py-0.5 text-xs">
         Page {currentPage} of {totalPages}
       </span>
 
-      {/* Tombol Next */}
       <button
         onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className="px-1 py-0.5 border rounded text-xs"
+        aria-label="Next page"
       >
         Next
       </button>
 
-      {/* Pilihan Jumlah Item per Halaman */}
       <select
         value={itemsPerPage}
         onChange={handleItemsPerPageChange}
         className="ml-1 border rounded px-1 py-0.5 text-xs"
+        aria-label="Items per page"
+        title="Select number of items per page"
       >
         <option value={5}>5</option>
         <option value={10}>10</option>

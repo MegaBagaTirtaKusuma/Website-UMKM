@@ -56,16 +56,16 @@ export default function ProcurementForm() {
         const data = await response.json();
         setItems(data);
       } else {
-        console.error("Failed to fetch items");
+        console.error("Gagal mengambil bahan");
       }
     } catch (error) {
-      console.error("Error fetching items:", error);
+      console.error("Error mengambil bahan:", error);
     }
   };
 
   const onSubmit = async (data: FormValues) => {
     if (!selectedItem) {
-      alert("Please select an item");
+      alert("Silakan pilih bahan");
       return;
     }
 
@@ -125,7 +125,7 @@ export default function ProcurementForm() {
           <>
             <FormField
               name="initialQuantity"
-              label={`Kuantitas (${selectedItem.unit || "Unit"})`}
+              label={`Kuantitas (${selectedItem.unit || "Satuan"})`}
               type="number"
               register={register}
               errors={errors}

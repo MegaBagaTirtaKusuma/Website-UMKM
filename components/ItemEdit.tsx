@@ -1,4 +1,3 @@
-// components/ItemEdit.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -42,6 +41,7 @@ interface FormValues {
 
 export default function ItemEdit() {
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const {
     control,
     register,
@@ -65,23 +65,21 @@ export default function ItemEdit() {
         const response = await fetch(`/api/procurement/item/edit?id=${itemId}`);
         const data = await response.json();
         if (response.ok) {
-          // Convert the category and unit back to their keys
           const category = Object.entries(ITEM_CATEGORIES).find(
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             ([_, value]) => value === data.category
           )?.[0] as ItemCategory;
           const unit = Object.entries(ITEM_UNITS).find(
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             ([_, value]) => value === data.unit
           )?.[0] as ItemUnit;
           reset({ ...data, category, unit });
         } else {
-          alert("Item not found!");
+          alert("Bahan tidak ditemukan!");
           router.push("/item");
         }
-      } catch (error) {
-        console.error("Error fetching item data:", error);
-        alert("Failed to fetch item data");
+      } catch (err) {
+        console.error("Error mengambil data bahan:", err);
+        setErrorMessage("Gagal mengambil data bahan");
+        alert("Gagal mengambil data bahan");
         router.push("/item");
       } finally {
         setLoading(false);
@@ -92,29 +90,34 @@ export default function ItemEdit() {
   }, [itemId, reset, router]);
 
   const onSubmit = async (data: FormValues) => {
-    console.log("Submitting data:", data);
     try {
       const response = await fetch(`/api/procurement/item/edit`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: itemId,
-          itemName: data.itemName,
+          itemName: data.itemName.trim(),
           category: ITEM_CATEGORIES[data.category],
-          unit: ITEM_UNITS[data.unit],
+          unit: data.unit ? ITEM_UNITS[data.unit] : null,
         }),
       });
 
       const result = await response.json();
-      if (response.ok) {
-        alert("Item updated successfully!");
-        router.push("/item");
-      } else {
-        alert(`Error: ${result.error}`);
+
+      if (!response.ok) {
+        console.log("Error response:", result);
+        setErrorMessage(
+          result.message || "Terjadi kesalahan saat menyimpan perubahan"
+        );
+        return;
       }
-    } catch (error) {
-      console.error("Error saving item data:", error);
-      alert("Error updating item.");
+
+      alert("Bahan berhasil diubah!");
+      setErrorMessage("");
+      router.push("/item");
+    } catch (err) {
+      console.error("Error mengubah bahan:", err);
+      setErrorMessage("Terjadi kesalahan pada sistem. Silakan coba lagi.");
     }
   };
 
@@ -136,11 +139,11 @@ export default function ItemEdit() {
     errors: any;
   }) => {
     const registerOptions: any = {
-      required: required ? `${label} is required.` : false,
+      required: required ? `${label} wajib diisi.` : false,
       maxLength: maxLength
         ? {
             value: maxLength,
-            message: `${label} must not exceed ${maxLength} characters.`,
+            message: `${label} tidak boleh lebih besar dari ${maxLength} karakter.`,
           }
         : undefined,
     };
@@ -157,7 +160,7 @@ export default function ItemEdit() {
               {...register(name, registerOptions)}
             />
           </TooltipTrigger>
-          <TooltipContent>Enter {label.toLowerCase()}</TooltipContent>
+          <TooltipContent>Masukkan {label.toLowerCase()}</TooltipContent>
         </Tooltip>
         {errors[name] && (
           <p className="text-red-500 text-sm mt-1">{errors[name]?.message}</p>
@@ -178,11 +181,11 @@ export default function ItemEdit() {
         <Controller
           name="category"
           control={control}
-          rules={{ required: "Category is required" }}
+          rules={{ required: "Kategori wajib diisi" }}
           render={({ field }) => (
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger>
-                <SelectValue placeholder="Select Item Category" />
+                <SelectValue placeholder="Pilih Kategori Bahan" />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(ITEM_CATEGORIES).map(([key, value]) => (
@@ -210,11 +213,11 @@ export default function ItemEdit() {
         <Controller
           name="unit"
           control={control}
-          rules={{ required: "Unit is required" }}
+          rules={{ required: "Satuan wajib diisi" }}
           render={({ field }) => (
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih Satuan" />
+                <SelectValue placeholder="Pilih Satuan Bahan" />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(ITEM_UNITS).map(([key, value]) => (
@@ -228,6 +231,12 @@ export default function ItemEdit() {
         />
         {errors.unit && (
           <p className="text-red-500 text-sm">{errors.unit.message}</p>
+        )}
+
+        {errorMessage && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded">
+            {errorMessage}
+          </div>
         )}
 
         <Button type="submit" variant="default">
