@@ -45,7 +45,7 @@ export default function ProductionForm() {
     control,
     name: "items",
   });
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [procurementItems, setProcurementItems] = useState<ProcurementItem[]>(
     []
   );
