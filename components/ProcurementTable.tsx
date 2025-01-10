@@ -15,6 +15,7 @@ import {
 import Pagination from "./Pagination";
 import { fetchWithAuth } from "../lib/utils";
 
+//struktur data
 interface Item {
   id: number;
   itemName: string;
@@ -43,13 +44,12 @@ const ProcurementTable = () => {
 
   const router = useRouter();
 
-  // Modifikasi fetcher untuk mengembalikan data JSON
   const fetcher = async (url: string) => {
     const response = await fetchWithAuth(url);
     return response.json();
   };
 
-  // Menggunakan SWR dengan fetcher yang sudah dimodifikasi
+  // Menggunakan SWR
   const { data, error, isLoading, mutate } = useSWR<ProcurementItem[]>(
     "/api/procurement",
     fetcher,

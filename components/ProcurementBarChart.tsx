@@ -1,7 +1,7 @@
 // ProcurementBarChart.tsx
 /** @format */
 "use client";
-import { fetchWithAuth } from "../lib/utils"; // Import fungsi fetchWithAuth seperti di ProcurementTable
+import { fetchWithAuth } from "../lib/utils";
 import React, { useEffect, useState } from "react";
 import {
   Bar,
@@ -68,7 +68,7 @@ const ProcurementBarChart: React.FC = () => {
     };
 
     fetchData();
-  }, []); // Kosongkan dependency array untuk memastikan hanya dipanggil sekali saat mount
+  }, []);
 
   if (loading) {
     return (
@@ -109,11 +109,7 @@ const ProcurementBarChart: React.FC = () => {
         />
         <XAxis dataKey="total" type="number" hide />
         <Tooltip formatter={(value: number) => formatRupiah(value)} />
-        <Bar
-          dataKey="total"
-          fill="black" // Ganti warna batang menjadi hitam
-          radius={8}
-        >
+        <Bar dataKey="total" fill="black" radius={8}>
           <LabelList
             dataKey="name"
             position="insideLeft"

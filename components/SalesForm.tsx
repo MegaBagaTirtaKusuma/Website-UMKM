@@ -3,10 +3,22 @@
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import Input from "@/components/ui/input";
-import useSWR, { mutate } from "swr";
-import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { useState, useEffect } from "react";
 
-interface ProductionItem {
+interface Production {
   id: number;
   productName: string;
   productionQuantity: number;
@@ -19,179 +31,203 @@ interface FormValues {
   saleDate: string;
 }
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Gagal mengambil data");
-  return res.json();
-};
-
 export default function SalesForm() {
-  const [serverError, setServerError] = useState<string>("");
-  const [successMessage, setSuccessMessage] = useState<string>("");
+  const [productions, setProductions] = useState<Production[]>([]);
+  const [selectedProduction, setSelectedProduction] =
+    useState<Production | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-    watch,
   } = useForm<FormValues>();
 
-  const { data: productions } = useSWR<ProductionItem[]>(
-    "/api/production",
-    fetcher
-  );
+  useEffect(() => {
+    fetchProductions();
+  }, []);
 
-  const selectedProductionId = watch("productionId");
-  const selectedQuantity = watch("saleQuantity");
-
-  const selectedProduction = productions?.find(
-    (p) => p.id === Number(selectedProductionId)
-  );
-
-  const isStockAvailable =
-    selectedProduction &&
-    selectedQuantity &&
-    selectedQuantity <= selectedProduction.productionQuantity;
+  const fetchProductions = async () => {
+    try {
+      const response = await fetch("/api/production");
+      if (response.ok) {
+        const data = await response.json();
+        setProductions(data);
+      } else {
+        console.error("Gagal mengambil data produksi");
+      }
+    } catch (error) {
+      console.error("Error mengambil data produksi:", error);
+    }
+  };
 
   const onSubmit = async (data: FormValues) => {
+    if (!selectedProduction) {
+      alert("Silakan pilih produk");
+      return;
+    }
+
     try {
-      setServerError("");
-      setSuccessMessage("");
-
-      if (!isStockAvailable) {
-        setServerError("Jumlah penjualan melebihi stok yang tersedia!");
-        return;
-      }
-
       const response = await fetch("/api/sales", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          productionId: selectedProduction.id,
+        }),
       });
 
+      const result = await response.json();
       if (response.ok) {
-        // Mutate data produksi dan penjualan
-        await mutate("/api/production");
-        await mutate("/api/sales");
-
-        setSuccessMessage("Data penjualan berhasil disimpan!");
+        alert("Penjualan berhasil disimpan!");
         reset();
+        setSelectedProduction(null);
       } else {
-        const result = await response.json();
-        setServerError(result.error || "Terjadi kesalahan saat menyimpan data");
+        alert(`Error: ${result.error}`);
       }
-    } catch (err) {
-      console.error("Error saat menyimpan penjualan:", err);
-      setServerError("Terjadi kesalahan pada sistem. Silakan coba lagi nanti.");
+    } catch (error) {
+      console.error(error);
+      alert("Error saat menyimpan penjualan.");
     }
   };
 
   return (
-    <div className="border border-gray-300 rounded-lg p-6 shadow-md bg-white">
-      {serverError && (
-        <div className="p-3 mb-4 text-red-700 bg-red-100 rounded-md">
-          {serverError}
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="p-3 mb-4 text-green-700 bg-green-100 rounded-md">
-          {successMessage}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Pilih Produk</label>
-          <select
-            {...register("productionId", {
-              required: "Silakan pilih produk yang akan dijual",
-            })}
-            className="w-full border border-gray-300 p-2 rounded-md"
-          >
-            <option value="">Pilih produk</option>
-            {productions?.map((production) => (
-              <option key={production.id} value={production.id}>
-                {production.productName} (Stok: {production.productionQuantity})
-              </option>
-            )) || (
-              <option value="" disabled>
-                Memuat data produk...
-              </option>
-            )}
-          </select>
-          {errors.productionId && (
-            <p className="text-red-500 text-sm">
-              {errors.productionId.message}
-            </p>
-          )}
-        </div>
-
-        <Input
-          label="Jumlah Penjualan"
-          type="number"
-          {...register("saleQuantity", {
-            required: "Jumlah penjualan wajib diisi",
-            min: { value: 1, message: "Jumlah penjualan minimal 1" },
-            validate: (value) =>
-              !selectedProduction ||
-              value <= selectedProduction.productionQuantity ||
-              "Jumlah penjualan melebihi stok yang tersedia",
-          })}
-          placeholder="Masukkan jumlah penjualan"
-        />
-        {errors.saleQuantity && (
-          <p className="text-red-500 text-sm">{errors.saleQuantity.message}</p>
-        )}
-
-        <Input
-          label="Harga Penjualan"
-          type="number"
-          {...register("salePrice", {
-            required: "Harga penjualan wajib diisi",
-            min: { value: 1000, message: "Harga minimal Rp 1.000" },
-            validate: (value) => {
-              if (value % 100 !== 0) {
-                return "Harga harus dalam kelipatan 100";
-              }
-              return true;
-            },
-          })}
-          placeholder="Masukkan harga penjualan"
-        />
-        {errors.salePrice && (
-          <p className="text-red-500 text-sm">{errors.salePrice.message}</p>
-        )}
-
-        <Input
-          label="Tanggal Penjualan"
-          type="date"
-          {...register("saleDate", {
-            required: "Tanggal penjualan wajib diisi",
-            validate: (value) => {
-              const selectedDate = new Date(value);
-              const today = new Date();
-              return (
-                selectedDate <= today ||
-                "Tanggal tidak boleh lebih dari hari ini"
-              );
-            },
-          })}
-        />
-        {errors.saleDate && (
-          <p className="text-red-500 text-sm">{errors.saleDate.message}</p>
-        )}
-
-        <Button
-          type="submit"
-          disabled={!isStockAvailable && selectedQuantity > 0}
+    <TooltipProvider>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+        noValidate
+      >
+        <Select
+          value={selectedProduction?.id.toString()}
+          onValueChange={(value) => {
+            const production = productions.find(
+              (p) => p.id.toString() === value
+            );
+            setSelectedProduction(production || null);
+          }}
         >
+          <SelectTrigger>
+            <SelectValue placeholder="Pilih Produk" />
+          </SelectTrigger>
+          <SelectContent>
+            {productions.map((production) => (
+              <SelectItem key={production.id} value={production.id.toString()}>
+                {production.productName} (Stok: {production.productionQuantity})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {selectedProduction && (
+          <>
+            <FormField
+              name="saleQuantity"
+              label="Jumlah Penjualan"
+              type="number"
+              register={register}
+              errors={errors}
+              required
+              maxValue={selectedProduction.productionQuantity}
+            />
+            <FormField
+              name="salePrice"
+              label="Harga Jual"
+              type="number"
+              register={register}
+              errors={errors}
+              required
+            />
+            <FormField
+              name="saleDate"
+              label="Tanggal Penjualan"
+              type="date"
+              register={register}
+              errors={errors}
+              required
+            />
+          </>
+        )}
+
+        <Button type="submit" variant="default" disabled={!selectedProduction}>
           Simpan Penjualan
         </Button>
       </form>
-    </div>
+    </TooltipProvider>
   );
 }
+
+interface FormFieldProps {
+  name: keyof FormValues;
+  label: string;
+  type?: string;
+  register: any;
+  errors: any;
+  required?: boolean;
+  maxValue?: number;
+}
+
+const FormField = ({
+  name,
+  label,
+  type = "text",
+  register,
+  errors,
+  required,
+  maxValue,
+}: FormFieldProps) => {
+  const [maxDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0];
+  });
+
+  const registerOptions: any = {
+    required: required ? `Kolom ${label} diperlukan.` : false,
+  };
+
+  if (type === "date") {
+    registerOptions.max = {
+      value: maxDate,
+      message: `${label} tidak boleh lebih dari hari ini.`,
+    };
+  }
+
+  if (type === "number") {
+    registerOptions.min = {
+      value: 0,
+      message: `${label} harus lebih besar dari 0.`,
+    };
+    if (maxValue) {
+      registerOptions.max = {
+        value: maxValue,
+        message: `${label} tidak boleh lebih dari ${maxValue}.`,
+      };
+    }
+    registerOptions.validate = (value: number) =>
+      value > 0 || `${label} harus lebih besar dari 0.`;
+  }
+
+  return (
+    <div className="flex flex-col">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Input
+            label={label}
+            id={name}
+            type={type}
+            step={type === "number" ? "0.01" : undefined}
+            placeholder={label}
+            {...register(name, registerOptions)}
+            max={type === "date" ? maxDate : undefined}
+          />
+        </TooltipTrigger>
+        <TooltipContent>Masukkan {label.toLowerCase()}</TooltipContent>
+      </Tooltip>
+      {errors[name] && (
+        <p className="text-red-500 text-sm mt-1">{errors[name].message}</p>
+      )}
+    </div>
+  );
+};

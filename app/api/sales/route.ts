@@ -1,6 +1,5 @@
-// api/sales/route.ts
 import { NextResponse } from "next/server";
-import prisma from "../../../lib/prisma";
+import prisma from "@/lib/prisma";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
@@ -8,145 +7,210 @@ const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "defaultsecret"
 );
 
-export async function GET() {
+async function verifyToken(token: string) {
   try {
-    const sales = await prisma.sales.findMany({
-      include: {
-        production: true,
-      },
-    });
-
-    const formattedSales = sales.map((sale) => ({
-      id: sale.id,
-      productName: sale.production.productName,
-      saleDate: sale.saleDate.toISOString(),
-      saleQuantity: sale.saleQuantity,
-      salePrice: sale.salePrice,
-    }));
-
-    return NextResponse.json(formattedSales);
-  } catch (error) {
-    console.error("Error fetching sales data:", error);
-    return new NextResponse("Error fetching sales data", { status: 500 });
+    const decoded = await jwtVerify(token, SECRET);
+    return decoded.payload.id;
+  } catch (err) {
+    console.error("Token tidak valid:", err);
+    return null;
   }
 }
 
-export async function POST(req: Request) {
+export async function GET() {
   try {
-    const data = await req.json();
-    console.log("Data diterima di backend:", data);
-
-    // Destructure and parse the incoming data
-    const { productionId, saleQuantity, salePrice, saleDate } = data;
-
-    // Validate required fields
-    if (!productionId || !saleQuantity || !salePrice) {
-      return new NextResponse("Field yang dibutuhkan tidak lengkap", {
-        status: 400,
-      });
-    }
-
-    // Parse values ensuring they are numbers
-    const parsedProductionId = parseInt(productionId, 10);
-    const parsedSalePrice = parseInt(salePrice, 10);
-    const parsedSaleQuantity = parseFloat(saleQuantity);
-
-    // Calculate totalRevenue
-    const totalRevenue = parsedSalePrice * parsedSaleQuantity;
-
-    // Validate parsed values
-    if (
-      isNaN(parsedProductionId) ||
-      isNaN(parsedSalePrice) ||
-      isNaN(parsedSaleQuantity) ||
-      isNaN(totalRevenue)
-    ) {
-      return new NextResponse("Field numerik tidak valid", { status: 400 });
-    }
-
-    // Verify user token
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
       return new NextResponse("Token tidak ditemukan", { status: 401 });
     }
 
-    const token = tokenCookie.value;
-    let decoded;
-    try {
-      decoded = await jwtVerify(token, SECRET);
-    } catch (err) {
-      console.error("Token tidak valid:", err);
+    const userId = await verifyToken(tokenCookie.value);
+    if (!userId) {
       return new NextResponse("Token tidak valid", { status: 401 });
     }
 
-    const userId = decoded.payload.id;
-    if (!userId || typeof userId !== "number") {
-      return new NextResponse("User ID tidak ditemukan dalam token", {
-        status: 401,
-      });
-    }
-
-    // Use provided saleDate or current date if not provided
-    const parsedSaleDate = saleDate ? new Date(saleDate) : new Date();
-
-    // Validate if the date is valid
-    if (isNaN(parsedSaleDate.getTime())) {
-      return new NextResponse("Format tanggal tidak valid", { status: 400 });
-    }
-
-    // Begin transaction
-    const transaction = await prisma.$transaction(async (prismaTransaction) => {
-      // Check current production quantity
-      const production = await prismaTransaction.production.findUnique({
-        where: { id: parsedProductionId },
-        select: { productionQuantity: true },
-      });
-
-      if (!production) {
-        throw new Error("Produk tidak ditemukan");
-      }
-
-      // Ensure sufficient quantity
-      if (production.productionQuantity < parsedSaleQuantity) {
-        throw new Error("Jumlah stok produksi tidak mencukupi");
-      }
-
-      // Reduce production quantity
-      const updatedProduction = await prismaTransaction.production.update({
-        where: { id: parsedProductionId },
-        data: {
-          productionQuantity:
-            production.productionQuantity - parsedSaleQuantity,
+    // Ambil data penjualan dengan filter userId
+    const salesData = await prisma.sales.findMany({
+      where: {
+        userId: Number(userId),
+        production: {
+          userId: Number(userId), // Filter produksi berdasarkan userId
         },
-        select: { productionQuantity: true }, // Return updated quantity
-      });
-
-      // Create the sale record
-      const sale = await prismaTransaction.sales.create({
-        data: {
-          productionId: parsedProductionId,
-          saleQuantity: parsedSaleQuantity,
-          salePrice: parsedSalePrice,
-          saleDate: parsedSaleDate,
-          userId,
-          totalRevenue: totalRevenue,
-        },
-      });
-
-      // Return sale record and updated stock
-      return { sale, updatedProduction };
+      },
+      include: {
+        production: true, // Include semua data production yang sudah difilter di where
+      },
+      orderBy: { saleDate: "desc" },
     });
 
-    console.log("Data penjualan berhasil disimpan:", transaction);
-    return NextResponse.json(transaction, { status: 201 });
+    return NextResponse.json(salesData, { status: 200 });
   } catch (error) {
-    console.error("Error saat menyimpan data penjualan:", error);
-    // return new NextResponse(
-    //   error.message || "Terjadi kesalahan saat menyimpan data penjualan",
-    //   {
-    //     status:
-    //       error.message === "Jumlah stok produksi tidak mencukupi" ? 400 : 500,
-    //   }
-    // );
+    console.error("Error mengambil data penjualan:", error);
+    return new NextResponse("Error mengambil data penjualan", { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const data: {
+      productionId: number;
+      saleQuantity: string | number;
+      salePrice: string | number;
+      saleDate: string;
+    } = await req.json();
+
+    const tokenCookie = cookies().get("authToken");
+    if (!tokenCookie) {
+      return new NextResponse("Token tidak ditemukan", { status: 401 });
+    }
+
+    const userId = await verifyToken(tokenCookie.value);
+    if (!userId) {
+      return new NextResponse("Token tidak valid", { status: 401 });
+    }
+
+    const userIdNumber = Number(userId);
+    if (isNaN(userIdNumber)) {
+      return new NextResponse("ID pengguna tidak valid", { status: 401 });
+    }
+
+    const { productionId, saleQuantity, salePrice, saleDate } = data;
+
+    if (!productionId || !saleQuantity || !salePrice || !saleDate) {
+      return new NextResponse(
+        "ProductionId, saleQuantity, salePrice, dan saleDate wajib diisi",
+        { status: 400 }
+      );
+    }
+
+    // Verifikasi bahwa produksi dimiliki oleh user yang sama
+    const production = await prisma.production.findFirst({
+      where: {
+        id: productionId,
+        userId: userIdNumber, // Pastikan produksi milik user yang sama
+      },
+    });
+
+    if (!production) {
+      return new NextResponse("Produk tidak ditemukan", { status: 404 });
+    }
+
+    // Konversi nilai ke number
+    const parsedSaleQuantity = parseFloat(saleQuantity.toString());
+    const parsedSalePrice = parseFloat(salePrice.toString());
+
+    if (isNaN(parsedSaleQuantity) || isNaN(parsedSalePrice)) {
+      return new NextResponse(
+        "Jumlah penjualan dan harga harus berupa angka yang valid",
+        { status: 400 }
+      );
+    }
+
+    const parsedSaleDate = new Date(saleDate);
+    if (isNaN(parsedSaleDate.getTime())) {
+      return new NextResponse("Tanggal penjualan tidak valid", { status: 400 });
+    }
+
+    if (parsedSaleQuantity > production.productionQuantity) {
+      return new NextResponse("Stok produk tidak mencukupi", { status: 400 });
+    }
+
+    // Hitung total pendapatan
+    const totalRevenue = parsedSaleQuantity * parsedSalePrice;
+
+    // Buat entri penjualan baru dengan transaksi
+    const newSale = await prisma.$transaction(async (tx) => {
+      // Buat record penjualan
+      const sale = await tx.sales.create({
+        data: {
+          productionId,
+          saleQuantity: parsedSaleQuantity,
+          salePrice: parsedSalePrice,
+          totalRevenue,
+          saleDate: parsedSaleDate,
+          userId: userIdNumber,
+        },
+        include: {
+          production: true, // Tidak perlu where di sini karena sudah difilter di data
+        },
+      });
+
+      // Update stok produksi
+      await tx.production.update({
+        where: {
+          id: productionId,
+          userId: userIdNumber,
+        },
+        data: {
+          productionQuantity: {
+            decrement: parsedSaleQuantity,
+          },
+        },
+      });
+
+      return sale;
+    });
+
+    return NextResponse.json(newSale, { status: 201 });
+  } catch (error) {
+    console.error("Error menyimpan penjualan:", error);
+    return new NextResponse("Error menyimpan penjualan", { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+
+    if (!id) {
+      return new NextResponse("ID tidak ditemukan", { status: 400 });
+    }
+
+    const tokenCookie = cookies().get("authToken");
+    if (!tokenCookie) {
+      return new NextResponse("Token tidak ditemukan", { status: 401 });
+    }
+
+    const userId = await verifyToken(tokenCookie.value);
+    if (!userId) {
+      return new NextResponse("Token tidak valid", { status: 401 });
+    }
+
+    const sale = await prisma.sales.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!sale) {
+      return new NextResponse("Penjualan tidak ditemukan", { status: 404 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Hapus record penjualan
+      await tx.sales.delete({
+        where: {
+          id: Number(id),
+          userId: Number(userId),
+        },
+      });
+
+      // Kembalikan stok produksi
+      await tx.production.update({
+        where: { id: sale.productionId },
+        data: {
+          productionQuantity: {
+            increment: sale.saleQuantity,
+          },
+        },
+      });
+    });
+
+    return NextResponse.json(
+      { message: "Data berhasil dihapus" },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error menghapus penjualan:", error);
+    return new NextResponse("Error menghapus penjualan", { status: 500 });
   }
 }

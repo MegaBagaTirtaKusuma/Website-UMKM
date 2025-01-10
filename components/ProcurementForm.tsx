@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 
+//struktur data
 interface Item {
   id: number;
   itemName: string;
@@ -173,10 +174,9 @@ interface FormFieldProps {
   register: any;
   errors: any;
   required?: boolean;
-  maxLength?: number; // Tambahkan ini jika belum ada
+  maxLength?: number;
 }
 
-// Definisi FormField
 const FormField = ({
   name,
   label,

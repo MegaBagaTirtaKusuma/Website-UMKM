@@ -101,11 +101,7 @@ const SalesBarChart: React.FC = () => {
         />
         <XAxis dataKey="total" type="number" hide />
         <Tooltip formatter={(value: number) => formatRupiah(value)} />
-        <Bar
-          dataKey="total"
-          fill="black" // Warna hijau untuk membedakan dengan procurement
-          radius={8}
-        >
+        <Bar dataKey="total" fill="black" radius={8}>
           <LabelList
             dataKey="name"
             position="insideLeft"

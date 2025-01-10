@@ -1,4 +1,3 @@
-// ProcurementEdit.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -19,26 +18,23 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 
-//struktur data
-interface Item {
+interface Production {
   id: number;
-  itemName: string;
-  category: string;
-  unit: string | null;
+  productName: string;
+  productionQuantity: number;
 }
 
 interface FormValues {
-  itemId: number;
-  initialQuantity: number;
-  currentQuantity: number;
-  totalPrice: number;
-  supplierName?: string;
-  purchaseDate: string;
+  productionId: number;
+  saleQuantity: number;
+  salePrice: number;
+  saleDate: string;
 }
 
-export default function ProcurementEdit() {
-  const [items, setItems] = useState<Item[]>([]);
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+export default function SalesEdit() {
+  const [productions, setProductions] = useState<Production[]>([]);
+  const [selectedProduction, setSelectedProduction] =
+    useState<Production | null>(null);
   const [loading, setLoading] = useState(true);
   const {
     register,
@@ -49,82 +45,76 @@ export default function ProcurementEdit() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const procurementId = searchParams.get("id");
+  const salesId = searchParams.get("id");
 
   useEffect(() => {
-    const fetchItems = async () => {
+    const fetchProductions = async () => {
       try {
-        const response = await fetch("/api/procurement/item");
+        const response = await fetch("/api/production");
         if (response.ok) {
           const data = await response.json();
-          setItems(data);
+          setProductions(data);
         } else {
-          console.error("Gagal mengambil bahan");
+          console.error("Gagal mengambil data produksi");
         }
       } catch (error) {
-        console.error("Error mengambil bahan:", error);
+        console.error("Error mengambil data produksi:", error);
       }
     };
 
-    fetchItems();
+    fetchProductions();
 
-    if (!procurementId) {
-      router.push("/procurement");
+    if (!salesId) {
+      router.push("/sales");
       return;
     }
 
     const fetchData = async () => {
       try {
-        const response = await fetch(
-          `/api/procurement/edit?id=${procurementId}`
-        );
+        const response = await fetch(`/api/sales/edit?id=${salesId}`);
         const data = await response.json();
         if (response.ok) {
-          setSelectedItem(data.item);
+          setSelectedProduction(data.production);
           reset({
-            itemId: data.itemId,
-            initialQuantity: data.initialQuantity,
-            currentQuantity: data.currentQuantity,
-            totalPrice: data.totalPrice,
-            supplierName: data.supplierName,
-            purchaseDate: new Date(data.purchaseDate)
-              .toISOString()
-              .split("T")[0],
+            productionId: data.productionId,
+            saleQuantity: data.saleQuantity,
+            salePrice: data.salePrice,
+            saleDate: new Date(data.saleDate).toISOString().split("T")[0],
           });
         } else {
           alert("Data tidak ditemukan!");
-          router.push("/procurement");
+          router.push("/sales");
         }
       } catch (error) {
-        console.error("Error mengambil data pengadaan:", error);
-        alert("Gagal mengambil data pengadaan");
-        router.push("/procurement");
+        console.error("Error mengambil data penjualan:", error);
+        alert("Gagal mengambil data penjualan");
+        router.push("/sales");
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [procurementId, reset, router]);
+  }, [salesId, reset, router]);
 
   const onSubmit = async (data: FormValues) => {
     try {
-      const response = await fetch(`/api/procurement/edit`, {
+      const response = await fetch(`/api/sales/edit`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: procurementId, ...data }),
+        body: JSON.stringify({ id: salesId, ...data }),
       });
 
       const result = await response.json();
       if (response.ok) {
-        alert("Pengadaan berhasil diubah!");
-        router.push("/procurement");
+        alert("Penjualan berhasil diubah!");
+        router.push("/sales");
       } else {
         alert(`Error: ${result.error}`);
       }
     } catch (error) {
-      console.error("Error mengubah pengadaan:", error);
-      alert("Error mengubah pengadaan.");
+      console.error("Error mengubah penjualan:", error);
+      alert("Error mengubah penjualan.");
     }
   };
 
@@ -169,7 +159,7 @@ export default function ProcurementEdit() {
                 maxLength: maxLength
                   ? {
                       value: maxLength,
-                      message: `${label} tidak boleh lebih besar dari ${maxLength} karakter.`,
+                      message: `${label} tidak boleh lebih dari ${maxLength} karakter.`,
                     }
                   : undefined,
               })}
@@ -195,59 +185,50 @@ export default function ProcurementEdit() {
         noValidate
       >
         <Select
-          value={selectedItem?.id.toString()}
+          value={selectedProduction?.id.toString()}
           onValueChange={(value) => {
-            const item = items.find((i) => i.id.toString() === value);
-            setSelectedItem(item || null);
+            const production = productions.find(
+              (p) => p.id.toString() === value
+            );
+            setSelectedProduction(production || null);
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Pilih Bahan" />
+            <SelectValue placeholder="Pilih Produk" />
           </SelectTrigger>
           <SelectContent>
-            {items.map((item) => (
-              <SelectItem key={item.id} value={item.id.toString()}>
-                {item.itemName} ({item.category})
+            {productions.map((production) => (
+              <SelectItem key={production.id} value={production.id.toString()}>
+                {production.productName} (Stok: {production.productionQuantity})
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {selectedItem && (
+        {selectedProduction && (
           <>
             <FormField
-              name="initialQuantity"
-              label={`Jumlah Awal (${selectedItem.unit || "Unit"})`}
+              name="saleQuantity"
+              label="Jumlah Penjualan"
               type="number"
               required
             />
             <FormField
-              name="currentQuantity"
-              label={`Jumlah Saat Ini (${selectedItem.unit || "Unit"})`}
+              name="salePrice"
+              label="Harga Jual"
               type="number"
               required
             />
             <FormField
-              name="totalPrice"
-              label="Total Harga"
-              type="number"
-              required
-            />
-            <FormField
-              name="supplierName"
-              label="Nama Supplier"
-              maxLength={255}
-            />
-            <FormField
-              name="purchaseDate"
-              label="Tanggal Pengadaan"
+              name="saleDate"
+              label="Tanggal Penjualan"
               type="date"
               required
             />
           </>
         )}
 
-        <Button type="submit" variant="default" disabled={!selectedItem}>
+        <Button type="submit" variant="default" disabled={!selectedProduction}>
           Simpan Perubahan
         </Button>
       </form>

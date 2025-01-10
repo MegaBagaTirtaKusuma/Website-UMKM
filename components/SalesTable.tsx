@@ -1,4 +1,7 @@
+"use client";
 import { useState } from "react";
+import useSWR from "swr";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableHeader,
@@ -9,173 +12,138 @@ import {
   TableCaption,
 } from "./ui/table";
 import Pagination from "./Pagination";
-import Input from "./ui/input";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
-import { Button } from "./ui/button";
-import useSWR from "swr";
+import { fetchWithAuth } from "../lib/utils";
+
+interface Production {
+  id: number;
+  productName: string;
+  productionQuantity: number;
+}
 
 interface SalesItem {
   id: number;
-  productName: string;
-  saleDate: string;
+  productionId: number;
+  production: Production;
   saleQuantity: number;
   salePrice: number;
+  totalRevenue: number;
+  saleDate: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 const SalesTable = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<SalesItem | null>(null);
 
-  // Menggunakan SWR untuk fetch data dengan auto-revalidation
-  const { data, error, isLoading } = useSWR<SalesItem[]>(
+  const router = useRouter();
+
+  const fetcher = async (url: string) => {
+    const response = await fetchWithAuth(url);
+    return response.json();
+  };
+
+  const { data, error, isLoading, mutate } = useSWR<SalesItem[]>(
     "/api/sales",
     fetcher,
     {
-      refreshInterval: 1000, // Refresh setiap 1 detik
-      revalidateOnFocus: true, // Refresh saat tab/window mendapat fokus
-      revalidateOnReconnect: true, // Refresh saat koneksi internet kembali
+      refreshInterval: 1000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
     }
   );
 
-  if (error) {
-    return (
-      <div className="p-4 text-red-500">
-        Error saat mengambil data. Silakan coba lagi.
-      </div>
-    );
-  }
+  const totalPages = Math.ceil((data?.length || 0) / itemsPerPage);
+  const paginatedData =
+    data?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ||
+    [];
 
-  if (isLoading) {
-    return <div className="p-4">Loading...</div>;
-  }
-
-  // Filter data berdasarkan pencarian dan tanggal
-  const filteredData =
-    data?.filter((item) => {
-      const matchesSearch = item.productName
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesDate =
-        (!startDate || new Date(item.saleDate) >= new Date(startDate)) &&
-        (!endDate || new Date(item.saleDate) <= new Date(endDate));
-
-      return matchesSearch && matchesDate;
-    }) || [];
-
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const paginatedData = filteredData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-
-    doc.text("Daftar Penjualan", 14, 10);
-
-    const tableData = filteredData.map((item) => [
-      item.productName,
-      new Date(item.saleDate).toLocaleDateString(),
-      item.saleQuantity,
-      item.salePrice.toLocaleString("id-ID", {
-        style: "currency",
-        currency: "IDR",
-      }),
-    ]);
-
-    doc.autoTable({
-      head: [
-        ["Nama Produk", "Tanggal Penjualan", "Jumlah Penjualan", "Harga Jual"],
-      ],
-      body: tableData,
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString("id-ID", {
+      style: "currency",
+      currency: "IDR",
     });
-
-    doc.save("sales-data.pdf");
   };
 
+  const handleEdit = (id: number) => {
+    router.push(`/sales/edit?id=${id}`);
+  };
+
+  const handleDeleteClick = (item: SalesItem) => {
+    setItemToDelete(item);
+    setIsDeleting(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return;
+    try {
+      const response = await fetchWithAuth(`/api/sales?id=${itemToDelete.id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        mutate();
+        setItemToDelete(null);
+        setIsDeleting(false);
+        alert("Data berhasil dihapus!");
+      } else {
+        alert("Gagal menghapus data penjualan.");
+      }
+    } catch (error) {
+      console.error("Error menghapus penjualan:", error);
+      alert("Gagal menghapus data penjualan.");
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleting(false);
+    setItemToDelete(null);
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div className="text-red-500">Error memuat data</div>;
+
   return (
-    <div className="overflow-x-auto p-4 border border-gray-300 rounded-lg">
-      <div className="flex flex-col md:flex-row gap-4 mb-4 border border-gray-200 p-4 rounded-lg">
-        <div className="flex flex-col">
-          <label htmlFor="search" className="text-sm text-gray-600">
-            Cari Nama Produk
-          </label>
-          <Input
-            id="search"
-            placeholder="Cari Nama Produk"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="border border-gray-300 rounded-lg"
-            label={""}
-          />
-        </div>
-        <div className="flex flex-col">
-          <label htmlFor="start-date" className="text-sm text-gray-600">
-            Mulai Tanggal
-          </label>
-          <Input
-            id="start-date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="border border-gray-300 rounded-lg"
-            label={""}
-          />
-        </div>
-        <div className="flex flex-col">
-          <label htmlFor="end-date" className="text-sm text-gray-600">
-            Akhir Tanggal
-          </label>
-          <Input
-            id="end-date"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="border border-gray-300 rounded-lg"
-            label={""}
-          />
-        </div>
-      </div>
-      <Table className="min-w-full border border-gray-300">
+    <div className="overflow-x-auto">
+      <Table className="min-w-full">
         <TableCaption>Daftar Penjualan</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead>Nama Produk</TableHead>
-            <TableHead>Tanggal Penjualan</TableHead>
-            <TableHead>Jumlah Penjualan</TableHead>
+            <TableHead>Jumlah Terjual</TableHead>
             <TableHead>Harga Jual</TableHead>
+            <TableHead>Tanggal Penjualan</TableHead>
+            <TableHead>Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {paginatedData.map((item) => (
-            <TableRow key={item.id} className="border-b border-gray-300">
-              <TableCell>{item.productName}</TableCell>
-              <TableCell>
-                {new Date(item.saleDate).toLocaleDateString("id-ID", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </TableCell>
+            <TableRow key={item.id}>
+              <TableCell>{item.production.productName}</TableCell>
               <TableCell>{item.saleQuantity}</TableCell>
+              <TableCell>{formatCurrency(item.salePrice)}</TableCell>
               <TableCell>
-                {item.salePrice.toLocaleString("id-ID", {
-                  style: "currency",
-                  currency: "IDR",
-                })}
+                {new Date(item.saleDate).toLocaleDateString("id-ID")}
+              </TableCell>
+              <TableCell className="flex space-x-2">
+                <button
+                  onClick={() => handleEdit(item.id)}
+                  className="bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded-md text-sm"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteClick(item)}
+                  className="bg-red-500 text-white hover:bg-red-600 px-4 py-2 rounded-md text-sm"
+                >
+                  Hapus
+                </button>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      <div className="flex justify-between mt-4">
-        <Button onClick={exportToPDF}>Export to PDF</Button>
+
+      <div className="flex justify-end mt-4">
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
@@ -184,6 +152,30 @@ const SalesTable = () => {
           onItemsPerPageChange={setItemsPerPage}
         />
       </div>
+
+      {isDeleting && itemToDelete && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-md">
+            <h3 className="text-lg">
+              Apakah Anda yakin ingin menghapus data ini?
+            </h3>
+            <div className="flex space-x-4 mt-4">
+              <button
+                onClick={handleDeleteConfirm}
+                className="bg-red-500 text-white px-4 py-2 rounded-md"
+              >
+                Hapus
+              </button>
+              <button
+                onClick={handleDeleteCancel}
+                className="bg-gray-300 text-black px-4 py-2 rounded-md"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

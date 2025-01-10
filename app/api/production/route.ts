@@ -1,4 +1,3 @@
-// api/production/route.ts
 import { NextResponse } from "next/server";
 import prisma from "../../../lib/prisma";
 import { jwtVerify } from "jose";
@@ -25,7 +24,6 @@ interface ProductionWithItems {
   }[];
 }
 
-// Mendeklarasikan secret key untuk JWT
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "defaultsecret"
 );
@@ -39,8 +37,6 @@ export async function GET() {
     }
 
     const token = tokenCookie.value;
-
-    // Verifikasi dan dekode token
     let decoded;
     try {
       decoded = await jwtVerify(token, SECRET);
@@ -56,9 +52,8 @@ export async function GET() {
       });
     }
 
-    // Mendapatkan data produksi hanya untuk user yang sedang login
     const productions = await prisma.production.findMany({
-      where: { userId }, // Filter berdasarkan userId
+      where: { userId },
       include: {
         items: {
           include: {
@@ -94,15 +89,12 @@ export async function GET() {
 // POST: Menambahkan data produksi baru
 export async function POST(req: Request) {
   try {
-    // Mengambil token dari cookie
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
       return new NextResponse("Token not provided", { status: 401 });
     }
 
     const token = tokenCookie.value;
-
-    // Verifikasi dan dekode token
     let decoded;
     try {
       decoded = await jwtVerify(token, SECRET);
@@ -118,11 +110,9 @@ export async function POST(req: Request) {
       });
     }
 
-    // Mendapatkan data dari request body
     const { items, productionDate, productName, productionQuantity } =
       await req.json();
 
-    // Validasi input
     if (
       !items ||
       items.length === 0 ||
@@ -136,7 +126,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Parsing dan validasi tanggal produksi
     const parsedProductionDate = new Date(productionDate);
     if (isNaN(parsedProductionDate.getTime())) {
       return new NextResponse(
@@ -145,10 +134,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Memulai transaksi untuk memastikan konsistensi data
     const result: ProductionWithItems = await prisma.$transaction(
       async (tx) => {
-        // Membuat produksi baru dengan menghubungkan userId
         const newProduction = await tx.production.create({
           data: {
             productName,
@@ -179,9 +166,7 @@ export async function POST(req: Request) {
           },
         });
 
-        // Update quantity procurement setelah produksi
         for (const item of items) {
-          // Dapatkan procurement yang dipilih untuk mendapatkan itemId
           const selectedProcurement = await tx.procurement.findUnique({
             where: { id: item.procurementId },
           });
@@ -192,7 +177,6 @@ export async function POST(req: Request) {
             );
           }
 
-          // Update semua procurement dengan itemId yang sama
           const allProcurements = await tx.procurement.findMany({
             where: {
               itemId: selectedProcurement.itemId,
@@ -216,7 +200,6 @@ export async function POST(req: Request) {
             );
           }
 
-          // Update currentQuantity untuk semua procurement dengan itemId yang sama
           await tx.procurement.updateMany({
             where: {
               itemId: selectedProcurement.itemId,
@@ -239,6 +222,73 @@ export async function POST(req: Request) {
       JSON.stringify({
         error:
           error instanceof Error ? error.message : "Error saving production",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+}
+
+// DELETE: Menghapus data produksi
+export async function DELETE(req: Request) {
+  try {
+    const tokenCookie = cookies().get("authToken");
+    if (!tokenCookie) {
+      return new NextResponse("Token not provided", { status: 401 });
+    }
+
+    const token = tokenCookie.value;
+    let decoded;
+    try {
+      decoded = await jwtVerify(token, SECRET);
+    } catch (err) {
+      console.error("Invalid token:", err);
+      return new NextResponse("Invalid token", { status: 401 });
+    }
+
+    const userId = decoded.payload.id;
+    if (!userId || typeof userId !== "number") {
+      return new NextResponse("Invalid token: userId not found", {
+        status: 401,
+      });
+    }
+
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+    if (!id) {
+      return new NextResponse("Production ID is required", { status: 400 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Hapus data sales terlebih dahulu
+      await tx.sales.deleteMany({
+        where: {
+          productionId: parseInt(id),
+        },
+      });
+
+      // Hapus items produksi
+      await tx.productionItem.deleteMany({
+        where: {
+          productionId: parseInt(id),
+        },
+      });
+
+      // Terakhir hapus produksi
+      await tx.production.delete({
+        where: {
+          id: parseInt(id),
+          userId: userId,
+        },
+      });
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("Error deleting production:", error);
+    return new NextResponse(
+      JSON.stringify({
+        error:
+          error instanceof Error ? error.message : "Error deleting production",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

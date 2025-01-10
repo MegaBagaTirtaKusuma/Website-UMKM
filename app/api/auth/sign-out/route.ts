@@ -48,5 +48,3 @@ export async function POST(req: Request) {
 
   return response;
 }
-
-// app/api/auth/sign-out/route.ts

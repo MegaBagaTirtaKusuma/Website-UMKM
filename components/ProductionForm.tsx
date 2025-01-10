@@ -188,7 +188,7 @@ export default function ProductionForm() {
               {Object.values(groupedProcurementItems).map((procItem) => (
                 <option key={procItem.id} value={procItem.id}>
                   {procItem.item.itemName} (Stok:{" "}
-                  {procItem.currentQuantity.toFixed(2)} {procItem.item.unit})
+                  {`${procItem.currentQuantity} ${procItem.item.unit || ""}`})
                 </option>
               ))}
             </select>
