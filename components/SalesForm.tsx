@@ -1,7 +1,9 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
+import { fetchWithAuth } from "@/lib/utils";
 import Input from "@/components/ui/input";
 import {
   Select,
@@ -16,7 +18,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface Production {
   id: number;
@@ -32,7 +34,6 @@ interface FormValues {
 }
 
 export default function SalesForm() {
-  const [productions, setProductions] = useState<Production[]>([]);
   const [selectedProduction, setSelectedProduction] =
     useState<Production | null>(null);
 
@@ -43,23 +44,22 @@ export default function SalesForm() {
     formState: { errors },
   } = useForm<FormValues>();
 
-  useEffect(() => {
-    fetchProductions();
-  }, []);
-
-  const fetchProductions = async () => {
-    try {
-      const response = await fetch("/api/production");
-      if (response.ok) {
-        const data = await response.json();
-        setProductions(data);
-      } else {
-        console.error("Gagal mengambil data produksi");
-      }
-    } catch (error) {
-      console.error("Error mengambil data produksi:", error);
-    }
+  // fetcher untuk SWR
+  const fetcher = async (url: string) => {
+    const response = await fetchWithAuth(url);
+    return response.json();
   };
+
+  // Menggunakan fetcher
+  const { data: productions = [], mutate } = useSWR<Production[]>(
+    "/api/production",
+    fetcher,
+    {
+      refreshInterval: 1000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
+  );
 
   const onSubmit = async (data: FormValues) => {
     if (!selectedProduction) {
@@ -68,7 +68,7 @@ export default function SalesForm() {
     }
 
     try {
-      const response = await fetch("/api/sales", {
+      const response = await fetchWithAuth("/api/sales", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,6 +84,8 @@ export default function SalesForm() {
         alert("Penjualan berhasil disimpan!");
         reset();
         setSelectedProduction(null);
+        // Memperbarui data produksi setelah penjualan berhasil
+        mutate();
       } else {
         alert(`Error: ${result.error}`);
       }

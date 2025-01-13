@@ -48,47 +48,72 @@ export async function GET() {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
 
-    const monthlyProfit = [];
+    // Mengoptimasi dengan single query untuk 6 bulan sekaligus
+    const startDate = new Date(
+      currentMonth - 5 < 0 ? currentYear - 1 : currentYear,
+      (currentMonth - 5 + 12) % 12,
+      1
+    );
+    const endDate = new Date(currentYear, currentMonth + 1, 1);
 
+    // Query sales dalam satu kali panggilan
+    const salesData = await prisma.sales.groupBy({
+      by: ["saleDate"],
+      where: {
+        userId,
+        saleDate: {
+          gte: startDate,
+          lt: endDate,
+        },
+      },
+      _sum: {
+        totalRevenue: true,
+      },
+    });
+
+    // Query procurement dalam satu kali panggilan
+    const procurementData = await prisma.procurement.groupBy({
+      by: ["purchaseDate"],
+      where: {
+        userId,
+        purchaseDate: {
+          gte: startDate,
+          lt: endDate,
+        },
+      },
+      _sum: {
+        totalPrice: true,
+      },
+    });
+
+    // Memproses data untuk 6 bulan
+    const monthlyProfit = [];
     for (let i = 0; i < 6; i++) {
       const month = (currentMonth - i + 12) % 12;
       const year = currentMonth - i < 0 ? currentYear - 1 : currentYear;
 
-      // Hitung total penjualan bulan ini
-      const totalSales = await prisma.sales.aggregate({
-        where: {
-          userId,
-          saleDate: {
-            gte: new Date(year, month, 1),
-            lt: new Date(year, month + 1, 1),
-          },
-        },
-        _sum: {
-          totalRevenue: true,
-        },
-      });
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 1);
 
-      // Hitung total pengadaan bulan ini
-      const totalProcurement = await prisma.procurement.aggregate({
-        where: {
-          userId,
-          purchaseDate: {
-            gte: new Date(year, month, 1),
-            lt: new Date(year, month + 1, 1),
-          },
-        },
-        _sum: {
-          totalPrice: true,
-        },
-      });
+      // Menghitung total penjualan untuk bulan ini
+      const monthSales = salesData
+        .filter((sale) => {
+          const saleDate = new Date(sale.saleDate);
+          return saleDate >= monthStart && saleDate < monthEnd;
+        })
+        .reduce((sum, sale) => sum + (sale._sum.totalRevenue || 0), 0);
 
-      const revenue = totalSales._sum?.totalRevenue || 0;
-      const expense = totalProcurement._sum?.totalPrice || 0;
-      const profit = revenue - expense;
+      // Menghitung total pengadaan untuk bulan ini
+      const monthProcurement = procurementData
+        .filter((proc) => {
+          const procDate = new Date(proc.purchaseDate);
+          return procDate >= monthStart && procDate < monthEnd;
+        })
+        .reduce((sum, proc) => sum + (proc._sum.totalPrice || 0), 0);
 
       monthlyProfit.push({
         name: bulanIndonesia[month],
-        total: profit,
+        total: monthSales - monthProcurement,
       });
     }
 
