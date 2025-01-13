@@ -12,7 +12,10 @@ export async function GET() {
   try {
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
-      return new NextResponse("Token not provided", { status: 401 });
+      return new Response(JSON.stringify({ error: "Token tidak ditemukan" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const token = tokenCookie.value;
@@ -20,15 +23,22 @@ export async function GET() {
     try {
       decoded = await jwtVerify(token, SECRET);
     } catch (err) {
-      console.error("Invalid token:", err);
-      return new NextResponse("Invalid token", { status: 401 });
+      console.error("Token tidak valid:", err);
+      return new Response(JSON.stringify({ error: "Token tidak valid" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const userId = decoded.payload.id;
     if (!userId || typeof userId !== "number") {
-      return new NextResponse("Invalid token: userId not found", {
-        status: 401,
-      });
+      return new Response(
+        JSON.stringify({ error: "Token tidak valid: userId tidak ditemukan" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     const productions = await prisma.production.findMany({
@@ -53,15 +63,24 @@ export async function GET() {
       productionQuantity: production.productionQuantity,
       items: production.items.map((item) => ({
         itemName: item.procurement.item.itemName,
-        quantity: item.quantity,
+        quantity: Number(item.quantity.toFixed(2)),
         unit: item.procurement.item.unit,
       })),
     }));
 
-    return NextResponse.json(ProductionWithItems);
+    return new Response(JSON.stringify(ProductionWithItems), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error fetching production data:", error);
-    return new NextResponse("Error fetching production data", { status: 500 });
+    return new Response(
+      JSON.stringify({ error: "Error mengambil data produksi" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
 
@@ -70,10 +89,10 @@ export async function POST(req: Request) {
   try {
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
-      return NextResponse.json(
-        { error: "Token not provided" },
-        { status: 401 }
-      );
+      return new Response(JSON.stringify({ error: "Token tidak ditemukan" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const token = tokenCookie.value;
@@ -81,15 +100,21 @@ export async function POST(req: Request) {
     try {
       decoded = await jwtVerify(token, SECRET);
     } catch (err) {
-      console.error("Invalid token:", err);
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+      console.error("Token tidak valid:", err);
+      return new Response(JSON.stringify({ error: "Token tidak valid" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const userId = decoded.payload.id;
     if (!userId || typeof userId !== "number") {
-      return NextResponse.json(
-        { error: "Invalid token: userId not found" },
-        { status: 401 }
+      return new Response(
+        JSON.stringify({ error: "Token tidak valid: userId tidak ditemukan" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -102,120 +127,117 @@ export async function POST(req: Request) {
       !productName ||
       productionQuantity == null
     ) {
-      return NextResponse.json(
-        { error: "All fields are required" },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ error: "Semua field harus diisi" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
       );
     }
 
-    const parsedProductionDate = new Date(productionDate);
-    if (isNaN(parsedProductionDate.getTime())) {
-      return NextResponse.json(
-        { error: "Invalid productionDate" },
-        { status: 400 }
-      );
-    }
-
-    // Ambil semua procurement yang dibutuhkan dalam satu query
-    const procurements = await prisma.procurement.findMany({
-      where: {
-        id: {
-          in: items.map(
-            (item: { procurementId: number }) => item.procurementId
-          ),
-        },
+    // 1. Buat produksi terlebih dahulu
+    const newProduction = await prisma.production.create({
+      data: {
+        productName,
+        productionDate: new Date(productionDate),
+        productionQuantity: Number(productionQuantity),
         userId,
       },
     });
 
-    // Validasi stok sebelum memulai transaksi
-    for (const item of items) {
-      const procurement = procurements.find((p) => p.id === item.procurementId);
-      if (!procurement) {
-        return NextResponse.json(
-          { error: `Procurement with id ${item.procurementId} not found` },
-          { status: 404 }
-        );
-      }
-
-      const newQuantity = Number(
-        (procurement.currentQuantity - item.quantity).toFixed(2)
-      );
-      if (newQuantity < 0) {
-        return NextResponse.json(
-          { error: `Insufficient stock for procurement ${item.procurementId}` },
-          { status: 400 }
-        );
-      }
-    }
-
-    const result = await prisma.$transaction(
-      async (tx) => {
-        // Buat produksi baru
-        const newProduction = await tx.production.create({
-          data: {
-            productName,
-            productionDate: parsedProductionDate,
-            productionQuantity,
-            userId,
-            items: {
-              create: items.map(
-                (item: { procurementId: number; quantity: number }) => ({
-                  quantity: Number(item.quantity.toFixed(2)),
-                  procurement: {
-                    connect: { id: item.procurementId },
-                  },
-                })
-              ),
-            },
-          },
-          include: {
-            items: {
+    try {
+      // 2. Proses items dan update stok
+      await prisma.$transaction(
+        async (tx) => {
+          for (const item of items) {
+            // Cek procurement dan stok
+            const procurement = await tx.procurement.findUnique({
+              where: {
+                id: item.procurementId,
+                userId,
+              },
               include: {
-                procurement: {
-                  include: {
-                    item: true,
-                  },
+                item: true,
+              },
+            });
+
+            if (!procurement) {
+              throw new Error(
+                `Procurement ${item.procurementId} tidak ditemukan`
+              );
+            }
+
+            const newQuantity = Number(
+              (procurement.currentQuantity - item.quantity).toFixed(2)
+            );
+            if (newQuantity < 0) {
+              throw new Error(
+                `Stok tidak cukup untuk bahan ${procurement.item.itemName}`
+              );
+            }
+
+            // Buat production item
+            await tx.productionItem.create({
+              data: {
+                productionId: newProduction.id,
+                procurementId: item.procurementId,
+                quantity: Number(item.quantity.toFixed(2)),
+              },
+            });
+
+            // Update stok procurement
+            await tx.procurement.update({
+              where: { id: item.procurementId },
+              data: { currentQuantity: newQuantity },
+            });
+          }
+        },
+        {
+          maxWait: 5000,
+          timeout: 8000,
+        }
+      );
+
+      // 3. Ambil data lengkap produksi untuk response
+      const completeProduction = await prisma.production.findUnique({
+        where: { id: newProduction.id },
+        include: {
+          items: {
+            include: {
+              procurement: {
+                include: {
+                  item: true,
                 },
               },
             },
           },
-        });
+        },
+      });
 
-        // Update semua procurement dalam satu batch
-        await Promise.all(
-          items.map((item: { procurementId: number; quantity: number }) => {
-            const procurement = procurements.find(
-              (p) => p.id === item.procurementId
-            )!;
-            const newQuantity = Number(
-              (procurement.currentQuantity - item.quantity).toFixed(2)
-            );
+      return new Response(JSON.stringify(completeProduction), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error) {
+      // Jika terjadi error, hapus produksi yang sudah dibuat
+      await prisma.production.delete({
+        where: { id: newProduction.id },
+      });
 
-            return tx.procurement.update({
-              where: { id: item.procurementId },
-              data: { currentQuantity: newQuantity },
-            });
-          })
-        );
-
-        return newProduction;
-      },
-      {
-        timeout: 8000, // Kurangi timeout untuk mencegah gateway timeout
-        maxWait: 5000,
-      }
-    );
-
-    return NextResponse.json(result, { status: 201 });
+      throw error;
+    }
   } catch (error) {
     console.error("Error saving production:", error);
-    return new NextResponse(
+    return new Response(
       JSON.stringify({
         error:
-          error instanceof Error ? error.message : "Error saving production",
+          error instanceof Error ? error.message : "Error menyimpan produksi",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }
@@ -225,7 +247,10 @@ export async function DELETE(req: Request) {
   try {
     const tokenCookie = cookies().get("authToken");
     if (!tokenCookie) {
-      return new NextResponse("Token not provided", { status: 401 });
+      return new Response(JSON.stringify({ error: "Token tidak ditemukan" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const token = tokenCookie.value;
@@ -233,56 +258,75 @@ export async function DELETE(req: Request) {
     try {
       decoded = await jwtVerify(token, SECRET);
     } catch (err) {
-      console.error("Invalid token:", err);
-      return new NextResponse("Invalid token", { status: 401 });
+      console.error("Token tidak valid:", err);
+      return new Response(JSON.stringify({ error: "Token tidak valid" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const userId = decoded.payload.id;
     if (!userId || typeof userId !== "number") {
-      return new NextResponse("Invalid token: userId not found", {
-        status: 401,
-      });
+      return new Response(
+        JSON.stringify({ error: "Token tidak valid: userId tidak ditemukan" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
     if (!id) {
-      return new NextResponse("Production ID is required", { status: 400 });
+      return new Response(JSON.stringify({ error: "ID produksi diperlukan" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    await prisma.$transaction(async (tx) => {
-      // Hapus data sales terlebih dahulu
-      await tx.sales.deleteMany({
-        where: {
-          productionId: parseInt(id),
-        },
-      });
+    await prisma.$transaction(
+      async (tx) => {
+        // Hapus data sales terlebih dahulu
+        await tx.sales.deleteMany({
+          where: {
+            productionId: parseInt(id),
+          },
+        });
 
-      // Hapus items produksi
-      await tx.productionItem.deleteMany({
-        where: {
-          productionId: parseInt(id),
-        },
-      });
+        // Hapus items produksi
+        await tx.productionItem.deleteMany({
+          where: {
+            productionId: parseInt(id),
+          },
+        });
 
-      // Terakhir hapus produksi
-      await tx.production.delete({
-        where: {
-          id: parseInt(id),
-          userId: userId,
-        },
-      });
-    });
+        // Terakhir hapus produksi
+        await tx.production.delete({
+          where: {
+            id: parseInt(id),
+            userId: userId,
+          },
+        });
+      },
+      {
+        maxWait: 5000,
+        timeout: 8000,
+      }
+    );
 
-    return new NextResponse(null, { status: 204 });
+    return new Response(null, { status: 204 });
   } catch (error) {
     console.error("Error deleting production:", error);
-    return new NextResponse(
+    return new Response(
       JSON.stringify({
         error:
-          error instanceof Error ? error.message : "Error deleting production",
+          error instanceof Error ? error.message : "Error menghapus produksi",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }
