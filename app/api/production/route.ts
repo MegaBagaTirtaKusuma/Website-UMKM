@@ -6,6 +6,11 @@ const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "defaultsecret"
 );
 
+interface ProductionItemInput {
+  procurementId: number;
+  quantity: number;
+}
+
 // GET: Mengambil data produksi dan detail items beserta procurement
 export async function GET() {
   try {
@@ -135,7 +140,42 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Buat produksi terlebih dahulu
+    // 1. Verifikasi semua procurement dan stok terlebih dahulu
+    const procurements = await prisma.procurement.findMany({
+      where: {
+        id: {
+          in: items.map((item: ProductionItemInput) => item.procurementId),
+        },
+        userId,
+      },
+      include: { item: true },
+    });
+
+    // Validasi stok
+    for (const item of items as ProductionItemInput[]) {
+      const procurement = procurements.find((p) => p.id === item.procurementId);
+      if (!procurement) {
+        return new Response(
+          JSON.stringify({
+            error: `Procurement ${item.procurementId} tidak ditemukan`,
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      const newQuantity = Number(
+        (procurement.currentQuantity - item.quantity).toFixed(2)
+      );
+      if (newQuantity < 0) {
+        return new Response(
+          JSON.stringify({
+            error: `Stok tidak cukup untuk bahan ${procurement.item.itemName}`,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+    // 2. Buat produksi
     const newProduction = await prisma.production.create({
       data: {
         productName,
@@ -146,59 +186,47 @@ export async function POST(req: Request) {
     });
 
     try {
-      // 2. Proses items dan update stok
-      await prisma.$transaction(
-        async (tx) => {
-          for (const item of items) {
-            // Cek procurement dan stok
-            const procurement = await tx.procurement.findUnique({
-              where: {
-                id: item.procurementId,
-                userId,
-              },
-              include: {
-                item: true,
-              },
-            });
+      // 3. Proses items dalam batch kecil
+      const BATCH_SIZE = 2;
+      const typedItems = items as ProductionItemInput[];
 
-            if (!procurement) {
-              throw new Error(
-                `Procurement ${item.procurementId} tidak ditemukan`
+      for (let i = 0; i < typedItems.length; i += BATCH_SIZE) {
+        const batch = typedItems.slice(i, i + BATCH_SIZE);
+
+        await prisma.$transaction(
+          async (tx) => {
+            for (const item of batch) {
+              // Buat production item
+              await tx.productionItem.create({
+                data: {
+                  productionId: newProduction.id,
+                  procurementId: item.procurementId,
+                  quantity: Number(item.quantity.toFixed(2)),
+                },
+              });
+
+              // Update stok
+              const procurement = procurements.find(
+                (p) => p.id === item.procurementId
+              )!;
+              const newQuantity = Number(
+                (procurement.currentQuantity - item.quantity).toFixed(2)
               );
+
+              await tx.procurement.update({
+                where: { id: item.procurementId },
+                data: { currentQuantity: newQuantity },
+              });
             }
-
-            const newQuantity = Number(
-              (procurement.currentQuantity - item.quantity).toFixed(2)
-            );
-            if (newQuantity < 0) {
-              throw new Error(
-                `Stok tidak cukup untuk bahan ${procurement.item.itemName}`
-              );
-            }
-
-            // Buat production item
-            await tx.productionItem.create({
-              data: {
-                productionId: newProduction.id,
-                procurementId: item.procurementId,
-                quantity: Number(item.quantity.toFixed(2)),
-              },
-            });
-
-            // Update stok procurement
-            await tx.procurement.update({
-              where: { id: item.procurementId },
-              data: { currentQuantity: newQuantity },
-            });
+          },
+          {
+            maxWait: 3000,
+            timeout: 5000,
           }
-        },
-        {
-          maxWait: 5000,
-          timeout: 8000,
-        }
-      );
+        );
+      }
 
-      // 3. Ambil data lengkap produksi untuk response
+      // 4. Ambil data lengkap
       const completeProduction = await prisma.production.findUnique({
         where: { id: newProduction.id },
         include: {
@@ -219,10 +247,12 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
       });
     } catch (error) {
-      // Jika terjadi error, hapus produksi yang sudah dibuat
-      await prisma.production.delete({
-        where: { id: newProduction.id },
-      });
+      // Rollback jika terjadi error
+      await prisma.production
+        .delete({
+          where: { id: newProduction.id },
+        })
+        .catch(console.error); // Ignore delete error
 
       throw error;
     }
