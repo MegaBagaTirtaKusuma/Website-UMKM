@@ -166,7 +166,10 @@ export async function POST(req: Request) {
           },
         });
 
-        for (const item of items) {
+        const typedItems: Array<{ procurementId: number; quantity: number }> =
+          items;
+
+        for (const item of typedItems) {
           const selectedProcurement = await tx.procurement.findUnique({
             where: { id: item.procurementId },
           });
@@ -177,41 +180,26 @@ export async function POST(req: Request) {
             );
           }
 
-          const allProcurements = await tx.procurement.findMany({
-            where: {
-              itemId: selectedProcurement.itemId,
-              userId,
-            },
-          });
-
-          if (allProcurements.length === 0) {
-            throw new Error(
-              `No procurements found for item ${selectedProcurement.itemId}`
-            );
-          }
-
+          // Hitung currentQuantity baru dan bulatkan ke 2 digit desimal
           const newQuantity = Number(
-            (allProcurements[0].currentQuantity - item.quantity).toFixed(2)
+            (selectedProcurement.currentQuantity - item.quantity).toFixed(2)
           );
 
-          if (newQuantity < 0) {
-            throw new Error(
-              `Not enough stock for item ${selectedProcurement.itemId}`
-            );
-          }
-
-          await tx.procurement.updateMany({
+          await tx.procurement.update({
             where: {
-              itemId: selectedProcurement.itemId,
-              userId,
+              id: item.procurementId,
             },
             data: {
-              currentQuantity: newQuantity,
+              currentQuantity: newQuantity, // Gunakan nilai yang sudah dibulatkan
             },
           });
         }
 
         return newProduction;
+      },
+      {
+        maxWait: 10000,
+        timeout: 20000,
       }
     );
 
