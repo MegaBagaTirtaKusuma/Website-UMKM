@@ -3,27 +3,6 @@ import prisma from "../../../lib/prisma";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-interface ProductionWithItems {
-  id: number;
-  productName: string;
-  productionDate: Date;
-  productionQuantity: number;
-  userId: number;
-  items: {
-    id: number;
-    quantity: number;
-    procurementId: number;
-    productionId: number;
-    procurement: {
-      item: {
-        id: number;
-        itemName: string;
-        unit: string | null;
-      };
-    };
-  }[];
-}
-
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "defaultsecret"
 );
