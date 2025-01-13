@@ -67,7 +67,7 @@ export async function GET() {
       },
     });
 
-    const formattedProductions = productions.map((production) => ({
+    const ProductionWithItems = productions.map((production) => ({
       id: production.id,
       productName: production.productName,
       productionDate: production.productionDate.toISOString(),
@@ -79,7 +79,7 @@ export async function GET() {
       })),
     }));
 
-    return NextResponse.json(formattedProductions);
+    return NextResponse.json(ProductionWithItems);
   } catch (error) {
     console.error("Error fetching production data:", error);
     return new NextResponse("Error fetching production data", { status: 500 });
