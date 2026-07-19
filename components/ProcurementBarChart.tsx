@@ -1,125 +1,41 @@
-// ProcurementBarChart.tsx
-/** @format */
 "use client";
-import { fetchWithAuth } from "../lib/utils";
-import React, { useEffect, useState } from "react";
+
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
   ResponsiveContainer,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
   Tooltip,
 } from "recharts";
 
-// Tipe untuk data pengadaan bulanan
-type MonthlyProcurement = {
-  name: string;
-  total: number;
-};
+const data = [
+  { name: "Jan", total: 1200000 },
+  { name: "Feb", total: 1800000 },
+  { name: "Mar", total: 1500000 },
+  { name: "Apr", total: 2100000 },
+  { name: "Mei", total: 1700000 },
+  { name: "Jun", total: 2500000 },
+];
 
-// Fungsi untuk memformat angka ke format rupiah
-const formatRupiah = (amount: number): string => {
-  return new Intl.NumberFormat("id-ID", {
+const formatRupiah = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
-  }).format(amount);
-};
+  }).format(value);
 
-// Komponen BarChart menggunakan React Functional Component
-const ProcurementBarChart: React.FC = () => {
-  // State untuk menyimpan data pengadaan bulanan
-  const [data, setData] = useState<MonthlyProcurement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Mengambil data dari API saat komponen dimuat
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        // Menggunakan fetchWithAuth untuk mengambil data dengan token yang valid
-        const response = await fetchWithAuth("/api/procurement/barchart", {
-          method: "GET",
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            `Error: ${response.status} ${response.statusText}, ${
-              errorData.error || ""
-            }`
-          );
-        }
-
-        const result: MonthlyProcurement[] = await response.json();
-        setData(result); // Mengatur data yang sudah difilter
-      } catch (error) {
-        console.error("Kesalahan saat mengambil data pengadaan:", error);
-        setError("Gagal memuat data pengadaan. Silakan coba lagi.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-        <p>Memuat data...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-red-500">
-        <p>{error}</p>
-      </div>
-    );
-  }
-
+export default function ProcurementBarChart() {
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart
-        data={data}
-        layout="vertical"
-        margin={{
-          top: 0,
-          right: 0,
-          left: 0,
-          bottom: 0,
-        }}
-      >
-        <CartesianGrid horizontal={false} />
-        <YAxis
-          dataKey="name"
-          type="category"
-          tickLine={false}
-          tickMargin={10}
-          axisLine={false}
-          hide
-        />
-        <XAxis dataKey="total" type="number" hide />
-        <Tooltip formatter={(value: number) => formatRupiah(value)} />
-        <Bar dataKey="total" fill="black" radius={8}>
-          <LabelList
-            dataKey="name"
-            position="insideLeft"
-            offset={8}
-            fontSize={13}
-          />
-        </Bar>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip formatter={(value) => formatRupiah(Number(value))} />
+        <Bar dataKey="total" fill="#2563eb" radius={[6, 6, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
-};
-
-export default ProcurementBarChart;
+}
