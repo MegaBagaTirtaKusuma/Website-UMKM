@@ -12,15 +12,14 @@ import ProfitBarChart from "@/components/ProfitBarchart";
 export default function Home() {
   const [loading, setLoading] = useState(true);
 
-  const [totalProcurement, setTotalProcurement] = useState(3500000);
-  const [totalSales, setTotalSales] = useState(7800000);
-  const [salesCount, setSalesCount] = useState(48);
-  const [profit, setProfit] = useState(4300000);
+const totalProcurement = 3500000;
+const totalSales = 7800000;
+const salesCount = 48;
+const profit = 4300000;
 
-  useEffect(() => {
-    // Demo Mode
-    setLoading(false);
-  }, []);
+useEffect(() => {
+  setLoading(false);
+}, []);
 
   const cardData: CardProps[] = [
     {
